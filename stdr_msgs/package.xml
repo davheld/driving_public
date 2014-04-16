@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<package>
+  <name>stdr_msgs</name>
+  <version>0.0.0</version>
+  <description>This package holds all the messages used in our code.
+
+  By placing the messages in a separate package we can reduce dependencies
+  between packages.
+  </description>
+
+  <maintainer email="brice.rebsamen@gmail.com">Brice Rebsamen</maintainer>
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  
+  <build_depend>message_generation</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  
+  <run_depend>message_runtime</run_depend>
+  <run_depend>std_msgs</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>rosbag_migration_rule</run_depend>
+
+  <export>
+    <rosbag_migration_rule rule_file="myrule.bmr"/>
+  </export>
+</package>

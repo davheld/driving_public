@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package>
+  <name>dgc_transform</name>
+  <version>0.0.0</version>
+  <description>The dgc_transform package is the old and deprecated way to 
+    represent transforms between frames. Use ROS TF (or TF2) in all new code.
+  </description>
+
+  <maintainer email="brice.rebsamen@gmail.com">Brice Rebsamen</maintainer>
+
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>tf</build_depend>
+  <build_depend>eigen_extensions</build_depend>
+  <build_depend>boost</build_depend>
+  <build_depend>stdr_lib</build_depend>
+
+  <run_depend>tf</run_depend>
+  <run_depend>eigen_extensions</run_depend>
+  <run_depend>boost</run_depend>
+  <run_depend>stdr_lib</run_depend>
+
+</package>

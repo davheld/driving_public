@@ -1,0 +1,14 @@
+# This is so that other packages that depend on this package automatically
+# get the PCL stuffs too.
+#
+# inspired from ros_comm/tools/rosconsole/cmake/rosconsole-extras.cmake
+
+# force automatic escaping of preprocessor definitions
+cmake_policy(PUSH)
+cmake_policy(SET CMP0005 NEW)
+
+add_definitions(@PCL_DEFINITIONS@)
+link_directories(@PCL_LIBRARY_DIRS@)
+
+cmake_policy(POP)
+

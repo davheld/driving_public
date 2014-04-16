@@ -1,0 +1,3 @@
+<launch>
+  <node pkg="localize" type="smooth_odom_tf_publisher" name="smooth_odom_publisher"/>
+</launch>

@@ -1,0 +1,19 @@
+<library path="lib/libladybug_playback">
+
+  <class name="ladybug_playback/frame_separator"
+    type="ladybug_playback::FrameSeparatorNodelet"
+    base_class_type="nodelet::Nodelet">
+    <description>
+      Nodelet to parse the raw ladybug data and separate the images.
+    </description>
+  </class>
+  
+  <class name="ladybug_playback/recombine"
+    type="ladybug_playback::RecombineNodelet"
+    base_class_type="nodelet::Nodelet">
+    <description>
+      Nodelet to combine the RGGB images and create bayer images.
+    </description>
+  </class>
+
+</library>

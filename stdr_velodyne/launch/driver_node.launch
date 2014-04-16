@@ -1,0 +1,6 @@
+<launch>
+  <node pkg="velodyne_driver" type="velodyne_node" name="velodyne_driver_node" ns="/driving/velodyne">
+    <remap from="velodyne_packets" to="packets"/>
+    <rosparam command="load" file="$(find velodyne)/launch/driver_params.yaml"/>
+  </node>
+</launch>

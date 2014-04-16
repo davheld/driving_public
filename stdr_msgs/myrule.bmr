@@ -1,0 +1,601 @@
+class update_applanix_ApplanixPose_cc005b38b12f428cb31db2f4286c261b(MessageUpdateRule):
+	old_type = "applanix/ApplanixPose"
+	old_full_text = """
+Header header
+float64 timestamp
+float64 smooth_x
+float64 smooth_y
+float64 smooth_z
+float64 latitude
+float64 longitude
+float64 altitude
+float32 vel_north
+float32 vel_east
+float32 vel_up
+float32 speed
+float32 track
+float64 roll
+float64 pitch
+float64 yaw
+float64 rate_roll
+float64 rate_pitch
+float64 rate_yaw
+float64 accel_x
+float64 accel_y
+float64 accel_z
+float64 wander
+uint32  id
+int32   postprocess_code
+float64 hardware_timestamp
+int32   hardware_time_mode
+
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+"""
+
+	new_type = "stdr_msgs/ApplanixPose"
+	new_full_text = """
+Header header
+float64 smooth_x
+float64 smooth_y
+float64 smooth_z
+float64 latitude
+float64 longitude
+float64 altitude
+float32 vel_north
+float32 vel_east
+float32 vel_up
+float32 speed
+float32 track
+float64 roll
+float64 pitch
+float64 yaw
+float64 rate_roll
+float64 rate_pitch
+float64 rate_yaw
+float64 accel_x
+float64 accel_y
+float64 accel_z
+float64 wander
+uint32  id
+int32   postprocess_code
+float64 hardware_timestamp
+int32   hardware_time_mode
+
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+"""
+
+	order = 0
+	migrated_types = [
+		("Header","Header"),]
+
+	valid = True
+
+	def update(self, old_msg, new_msg):
+		self.migrate(old_msg.header, new_msg.header)
+		new_msg.smooth_x = old_msg.smooth_x
+		new_msg.smooth_y = old_msg.smooth_y
+		new_msg.smooth_z = old_msg.smooth_z
+		new_msg.latitude = old_msg.latitude
+		new_msg.longitude = old_msg.longitude
+		new_msg.altitude = old_msg.altitude
+		new_msg.vel_north = old_msg.vel_north
+		new_msg.vel_east = old_msg.vel_east
+		new_msg.vel_up = old_msg.vel_up
+		new_msg.speed = old_msg.speed
+		new_msg.track = old_msg.track
+		new_msg.roll = old_msg.roll
+		new_msg.pitch = old_msg.pitch
+		new_msg.yaw = old_msg.yaw
+		new_msg.rate_roll = old_msg.rate_roll
+		new_msg.rate_pitch = old_msg.rate_pitch
+		new_msg.rate_yaw = old_msg.rate_yaw
+		new_msg.accel_x = old_msg.accel_x
+		new_msg.accel_y = old_msg.accel_y
+		new_msg.accel_z = old_msg.accel_z
+		new_msg.wander = old_msg.wander
+		new_msg.id = old_msg.id
+		new_msg.postprocess_code = old_msg.postprocess_code
+		new_msg.hardware_timestamp = old_msg.hardware_timestamp
+		new_msg.hardware_time_mode = old_msg.hardware_time_mode
+class update_applanix_ApplanixDMI_401be87506cafdbaab973f060b746f4e(MessageUpdateRule):
+	old_type = "applanix/ApplanixDMI"
+	old_full_text = """
+Header header
+float64 signed_odometer       # DMI distance odometer, in meters, signed value
+float64 unsigned_odometer     # DMI distance odometer, in meters, unsigned value
+uint32 id                     # unique id for internal tracking
+float64 hardware_timestamp    # Timestamp from the Applanix hardware, in UTC seconds of the week.
+int32 hardware_time_mode      # Mode of timestamp from the Applanix hardware.  0 = None.  1 = Acquire.  2 = Locked.
+float64 timestamp
+
+
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+"""
+
+	new_type = "stdr_msgs/ApplanixDMI"
+	new_full_text = """
+Header header
+float64 signed_odometer       # DMI distance odometer, in meters, signed value
+float64 unsigned_odometer     # DMI distance odometer, in meters, unsigned value
+uint32 id                     # unique id for internal tracking
+float64 hardware_timestamp    # Timestamp from the Applanix hardware, in UTC seconds of the week.
+int32 hardware_time_mode      # Mode of timestamp from the Applanix hardware.  0 = None.  1 = Acquire.  2 = Locked.
+
+
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+"""
+
+	order = 0
+	migrated_types = [
+		("Header","Header"),]
+
+	valid = True
+
+	def update(self, old_msg, new_msg):
+		self.migrate(old_msg.header, new_msg.header)
+		new_msg.signed_odometer = old_msg.signed_odometer
+		new_msg.unsigned_odometer = old_msg.unsigned_odometer
+		new_msg.id = old_msg.id
+		new_msg.hardware_timestamp = old_msg.hardware_timestamp
+		new_msg.hardware_time_mode = old_msg.hardware_time_mode
+class update_applanix_ApplanixRMS_42b3075661be476cd0f2ce8227453be4(MessageUpdateRule):
+	old_type = "applanix/ApplanixRMS"
+	old_full_text = """
+Header header
+float32 rms_north           # North position error, in meters (global frame)
+float32 rms_east            # East position error, in meters (global frame)
+float32 rms_up              # Up position error, in meters (global frame)
+float32 rms_v_north         # North velocity error, in m/s (global frame)
+float32 rms_v_east          # East velocity error, in m/s (global frame) 
+float32 rms_v_up            # Up velocity error, in m/s (global frame)
+float32 rms_roll            # roll error, in radians
+float32 rms_pitch           # pitch error, in radians
+float32 rms_yaw             # yaw error, in radians
+float32 semi_major          # length of semi major axis of error ellipse, in m
+float32 semi_minor          # length of semi minor axis of error ellipse, in m
+float32 orientation         # orientation of error ellipse, radians
+uint32 id                   # unique ID for internal tracking
+int32 postprocess_code      # 0 = Real Time.  1 = Post Processed.  2 = Post Processed with Base Station.
+float64 hardware_timestamp  # Timestamp from the Applanix hardware, in UTC seconds of the week.
+int32 hardware_time_mode    # Mode of timestamp from the Applanix hardware.  0 = None.  1 = Acquire.  2 = Locked.
+float64 timestamp
+
+
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+"""
+
+	new_type = "stdr_msgs/ApplanixRMS"
+	new_full_text = """
+Header header
+float32 rms_north           # North position error, in meters (global frame)
+float32 rms_east            # East position error, in meters (global frame)
+float32 rms_up              # Up position error, in meters (global frame)
+float32 rms_v_north         # North velocity error, in m/s (global frame)
+float32 rms_v_east          # East velocity error, in m/s (global frame) 
+float32 rms_v_up            # Up velocity error, in m/s (global frame)
+float32 rms_roll            # roll error, in radians
+float32 rms_pitch           # pitch error, in radians
+float32 rms_yaw             # yaw error, in radians
+float32 semi_major          # length of semi major axis of error ellipse, in m
+float32 semi_minor          # length of semi minor axis of error ellipse, in m
+float32 orientation         # orientation of error ellipse, radians
+uint32 id                   # unique ID for internal tracking
+int32 postprocess_code      # 0 = Real Time.  1 = Post Processed.  2 = Post Processed with Base Station.
+float64 hardware_timestamp  # Timestamp from the Applanix hardware, in UTC seconds of the week.
+int32 hardware_time_mode    # Mode of timestamp from the Applanix hardware.  0 = None.  1 = Acquire.  2 = Locked.
+
+
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+"""
+
+	order = 0
+	migrated_types = [
+		("Header","Header"),]
+
+	valid = True
+
+	def update(self, old_msg, new_msg):
+		self.migrate(old_msg.header, new_msg.header)
+		new_msg.rms_north = old_msg.rms_north
+		new_msg.rms_east = old_msg.rms_east
+		new_msg.rms_up = old_msg.rms_up
+		new_msg.rms_v_north = old_msg.rms_v_north
+		new_msg.rms_v_east = old_msg.rms_v_east
+		new_msg.rms_v_up = old_msg.rms_v_up
+		new_msg.rms_roll = old_msg.rms_roll
+		new_msg.rms_pitch = old_msg.rms_pitch
+		new_msg.rms_yaw = old_msg.rms_yaw
+		new_msg.semi_major = old_msg.semi_major
+		new_msg.semi_minor = old_msg.semi_minor
+		new_msg.orientation = old_msg.orientation
+		new_msg.id = old_msg.id
+		new_msg.postprocess_code = old_msg.postprocess_code
+		new_msg.hardware_timestamp = old_msg.hardware_timestamp
+		new_msg.hardware_time_mode = old_msg.hardware_time_mode
+class update_applanix_ApplanixGPS_3dbd97063c02ca8a2d788ff2087e3d38(MessageUpdateRule):
+	old_type = "applanix/ApplanixGPS"
+	old_full_text = """
+Header header
+int32 primary_sats          # primary GPS satellite constellation.
+uint32 primary_id           # primary GPS unique id, for internal tracking.
+float64 primary_timestamp   # primary GPS timestamp from machine receiving Applanix message, in seconds
+int32 secondary_sats        # secondary GPS satellite constellation.  
+uint32 secondary_id         # secondary GPS unique id, for internal tracking.
+float64 secondary_timestamp # secondary GPS timestamp from machine receiving Applanix message, in seconds
+int32 gams_solution_code    # GAMS status code.  Range is 0-7.  7 is full solution.
+uint32 gams_id              # GAMS unique id, for internal tracking.
+float64 gams_timestamp      # GAMS timestamp from machine receiving Applanix message, in seconds
+float64 timestamp
+
+
+
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+"""
+
+	new_type = "stdr_msgs/ApplanixGPS"
+	new_full_text = """
+Header header
+int32 primary_sats          # primary GPS satellite constellation.
+uint32 primary_id           # primary GPS unique id, for internal tracking.
+float64 primary_timestamp   # primary GPS timestamp from machine receiving Applanix message, in seconds
+int32 secondary_sats        # secondary GPS satellite constellation.  
+uint32 secondary_id         # secondary GPS unique id, for internal tracking.
+float64 secondary_timestamp # secondary GPS timestamp from machine receiving Applanix message, in seconds
+int32 gams_solution_code    # GAMS status code.  Range is 0-7.  7 is full solution.
+uint32 gams_id              # GAMS unique id, for internal tracking.
+float64 gams_timestamp      # GAMS timestamp from machine receiving Applanix message, in seconds
+
+
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+"""
+
+	order = 0
+	migrated_types = [
+		("Header","Header"),]
+
+	valid = True
+
+	def update(self, old_msg, new_msg):
+		self.migrate(old_msg.header, new_msg.header)
+		new_msg.primary_sats = old_msg.primary_sats
+		new_msg.primary_id = old_msg.primary_id
+		new_msg.primary_timestamp = old_msg.primary_timestamp
+		new_msg.secondary_sats = old_msg.secondary_sats
+		new_msg.secondary_id = old_msg.secondary_id
+		new_msg.secondary_timestamp = old_msg.secondary_timestamp
+		new_msg.gams_solution_code = old_msg.gams_solution_code
+		new_msg.gams_id = old_msg.gams_id
+		new_msg.gams_timestamp = old_msg.gams_timestamp
+class update_localize_LocalizePose_9d9ef1734529b68cbb5dff3aa87d9a68(MessageUpdateRule):
+	old_type = "localize/LocalizePose"
+	old_full_text = """
+Header header
+float64 timestamp
+int32   source
+float64 corrected_x
+float64 corrected_y
+string utmzone
+float64 x_offset
+float64 y_offset
+float32 std_x
+float32 std_y
+float32 std_f
+float32 std_s
+
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+"""
+
+	new_type = "stdr_msgs/LocalizePose"
+	new_full_text = """
+Header header
+int32   source
+float64 corrected_x
+float64 corrected_y
+string utmzone
+float64 x_offset
+float64 y_offset
+float32 std_x
+float32 std_y
+float32 std_f
+float32 std_s
+
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+"""
+
+	order = 0
+	migrated_types = [
+		("Header","Header"),]
+
+	valid = True
+
+	def update(self, old_msg, new_msg):
+		self.migrate(old_msg.header, new_msg.header)
+		new_msg.source = old_msg.source
+		new_msg.corrected_x = old_msg.corrected_x
+		new_msg.corrected_y = old_msg.corrected_y
+		new_msg.utmzone = old_msg.utmzone
+		new_msg.x_offset = old_msg.x_offset
+		new_msg.y_offset = old_msg.y_offset
+		new_msg.std_x = old_msg.std_x
+		new_msg.std_y = old_msg.std_y
+		new_msg.std_f = old_msg.std_f
+		new_msg.std_s = old_msg.std_s
+class update_velodyne_RawScan_2ef6b173f66a68668c7e4a0c731764b7(MessageUpdateRule):
+	old_type = "velodyne/RawScan"
+	old_full_text = """
+uint8 BLOCK_UPPER = 0
+uint8 BLOCK_LOWER = 1
+uint8 NUM_BEAMS   = 32
+
+time stamp                       # Time this measurement was received by driver
+uint8 block_id # Upper or lower block
+uint16 encoder # Encoder angle in 1/100th degree units.  0-35999 
+uint16[32] range # range information in ticks (multiply by 0.002 to get meters)
+uint8[32] intensity
+"""
+
+	new_type = "stdr_msgs/RawScan"
+	new_full_text = """
+uint8 BLOCK_UPPER = 0
+uint8 BLOCK_LOWER = 1
+uint8 NUM_BEAMS   = 32
+
+time stamp                       # Time this measurement was received by driver
+uint8 block_id # Upper or lower block
+uint16 encoder # Encoder angle in 1/100th degree units.  0-35999 
+uint16[32] range # range information in ticks (multiply by 0.002 to get meters)
+uint8[32] intensity
+"""
+
+	order = 0
+	migrated_types = []
+
+	valid = True
+
+	def update(self, old_msg, new_msg):
+		new_msg.stamp = old_msg.stamp
+		new_msg.block_id = old_msg.block_id
+		new_msg.encoder = old_msg.encoder
+		new_msg.range = old_msg.range
+		new_msg.intensity = old_msg.intensity
+class update_velodyne_RawScans_e0fa6bd43e3ed22de5ad110d1ce4be8c(MessageUpdateRule):
+	old_type = "velodyne/RawScans"
+	old_full_text = """
+Header header
+RawScan[] scans
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+
+================================================================================
+MSG: velodyne/RawScan
+uint8 BLOCK_UPPER = 0
+uint8 BLOCK_LOWER = 1
+uint8 NUM_BEAMS   = 32
+
+time stamp                       # Time this measurement was received by driver
+uint8 block_id # Upper or lower block
+uint16 encoder # Encoder angle in 1/100th degree units.  0-35999 
+uint16[32] range # range information in ticks (multiply by 0.002 to get meters)
+uint8[32] intensity
+"""
+
+	new_type = "stdr_msgs/RawScans"
+	new_full_text = """
+Header header
+RawScan[] scans
+================================================================================
+MSG: std_msgs/Header
+# Standard metadata for higher-level stamped data types.
+# This is generally used to communicate timestamped data 
+# in a particular coordinate frame.
+# 
+# sequence ID: consecutively increasing ID 
+uint32 seq
+#Two-integer timestamp that is expressed as:
+# * stamp.secs: seconds (stamp_secs) since epoch
+# * stamp.nsecs: nanoseconds since stamp_secs
+# time-handling sugar is provided by the client library
+time stamp
+#Frame this data is associated with
+# 0: no frame
+# 1: global frame
+string frame_id
+
+================================================================================
+MSG: stdr_msgs/RawScan
+uint8 BLOCK_UPPER = 0
+uint8 BLOCK_LOWER = 1
+uint8 NUM_BEAMS   = 32
+
+time stamp                       # Time this measurement was received by driver
+uint8 block_id # Upper or lower block
+uint16 encoder # Encoder angle in 1/100th degree units.  0-35999 
+uint16[32] range # range information in ticks (multiply by 0.002 to get meters)
+uint8[32] intensity
+"""
+
+	order = 0
+	migrated_types = [
+		("Header","Header"),
+		("RawScan","RawScan"),]
+
+	valid = True
+
+	def update(self, old_msg, new_msg):
+		self.migrate(old_msg.header, new_msg.header)
+		self.migrate_array(old_msg.scans, new_msg.scans, "stdr_msgs/RawScan")

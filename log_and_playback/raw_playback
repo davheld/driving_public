@@ -1,0 +1,112 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+import signal
+import subprocess
+import time
+
+help_string = '''
+    raw_playback: plays back some data log files in either the DGC log format 
+                  or the rosbag format.
+              
+    USAGE: raw_playback [OPTS] logfiles
+
+    Depending on the format of the logfiles, either the rosbag player or the
+    dgclog_playback player. In any case, all options are passed to the player.
+
+    The script will also launch log_and_playback/launch/raw_playback.launch to 
+    help process the raw data:
+      - TF and Odometry messages from ApplanixPose messages
+      - Projected spins from raw scans
+
+'''
+
+subprocess.call("rosparam set use_sim_time true", shell=True)
+
+nullout = file('/dev/null', 'a+')
+processes = {"launch": None, "player": None}
+
+#------------------------------------------------------------------------------ 
+# parse command line arguments and see whether we are playing bags or dgc logs
+# launch the corresponding player
+# Also handles printing appropriate help messages
+#------------------------------------------------------------------------------ 
+
+bag=False
+dgc=False
+help=False
+
+for arg in sys.argv[1:]:
+  if arg=='-h' or arg=='--help':
+    help = True
+  elif os.path.exists(arg) and os.path.isfile(arg):
+    if arg.endswith(".log.gz") or arg.endswith(".log") or arg.endswith(".vlf") or arg.endswith(".llf"):
+      dgc = True
+    elif arg.endswith(".bag"):
+      bag = True
+
+def die(msg):
+  print 'Error:', msg
+  if not help:
+    print help_string
+  sys.exit(1)
+
+if help:
+    print help_string
+
+if bag and dgc:
+    die('you cannot give both dgc log files and bag files')
+
+elif bag:
+  if help:
+    print 'rosbag player help:'
+  processes["player"] = subprocess.Popen(["rosbag", "play", "--clock", "--hz=250"] + sys.argv[1:])
+
+elif dgc:
+  if help:
+    print 'dgclog_player help:'
+  processes["player"] = subprocess.Popen(["rosrun", "log_and_playback", "dgclog_playback"] + sys.argv[1:])
+
+else:
+  if not help:
+    die('could not find a log file to play')
+  sys.exit(0)
+
+time.sleep(1)
+processes["player"].poll()
+r = processes["player"].returncode
+if r != None:
+  if r==1:
+    die('Player crashed')
+  sys.exit(r)
+
+  
+#------------------------------------------------------------------------------ 
+# launch the other nodes with roslaunch
+processes["launch"] = subprocess.Popen(["roslaunch", "log_and_playback", "raw_playback.launch"], stdin=nullout)
+
+
+#------------------------------------------------------------------------------ 
+# declare a CTRL-C signal handler
+def exithandler(signum, frame):
+  for k,p in processes.iteritems():
+    if p.returncode is None:
+      p.send_signal(signal.SIGINT)
+      p.wait()
+  print ''
+  sys.exit(0)
+
+signal.signal(signal.SIGINT, exithandler)
+
+
+#------------------------------------------------------------------------------ 
+# monitor the life of our processes
+while True:
+  for k,p in processes.iteritems():
+    p.poll()
+    if p.returncode != None:
+      print k, "has died. Exiting."
+      exithandler(None,None)
+  time.sleep(1)

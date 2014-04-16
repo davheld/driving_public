@@ -1,0 +1,5 @@
+<launch>
+  <node pkg="nodelet" type="nodelet" name="frame_separator_nodelet"
+        ns="/driving/ladybug"
+        args="load ladybug_playback/frame_separator nodelet_manager" />
+</launch>

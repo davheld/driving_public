@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<package>
+  <name>localize</name>
+  <version>0.0.0</version>
+  <description>Code to compute the offset between the smooth frame and the
+  local utm-based frame.
+
+  As the vehicle moves, its position in the smooth frame drifts with unbounded
+  errors (dead-reckoning). The localizers in this packages compute that drift.
+
+  The fake localizer uses the GPS readings from the Applanix (about 1m RMS error).
+  </description>
+
+  <maintainer email="brice.rebsamen@gmail.com">Brice Rebsamen</maintainer>
+
+  <license>TODO</license>
+
+  <author email="jlevinson@stanford.edu">Jesse Levinson</author>
+  <author email="brice.rebsamen@gmail.com">Brice Rebsamen</author>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>roscpp</build_depend>
+  <build_depend>tf</build_depend>
+  <build_depend>diagnostic_updater</build_depend>
+  <build_depend>stdr_msgs</build_depend>
+  <build_depend>global_coords</build_depend>
+
+  <run_depend>roscpp</run_depend>
+  <run_depend>tf</run_depend>
+  <run_depend>diagnostic_updater</run_depend>
+  <run_depend>stdr_msgs</run_depend>
+  <run_depend>global_coords</run_depend>
+
+</package>

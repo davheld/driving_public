@@ -1,0 +1,19 @@
+<library path="lib/libvelodyne">
+  
+  <class name="stdr_velodyne/conversion"
+         type="stdr_velodyne::ConversionNodelet"
+         base_class_type="nodelet::Nodelet">
+    <description>
+      Converts between the old RawScans msg format to the new VelodyneScans msg format.
+    </description>
+  </class>
+
+  <class name="stdr_velodyne/pointcloud"
+         type="stdr_velodyne::PacketToPcdNodelet"
+         base_class_type="nodelet::Nodelet">
+    <description>
+      Produces a point cloud from raw scans and calibration data.
+    </description>
+  </class>
+    
+</library>

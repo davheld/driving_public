@@ -1,0 +1,42 @@
+Documentation
+=============
+
+Introduction
+------------
+
+This package provides the position of the car in the UTM coordinates.
+
+The applanix gives (1) the position in the smooth frame, which origin is set
+to wherever the applanix module was started, and (2) the latitude and longitude
+of the car.
+
+As the car moves, the coordinates in the smooth frame drift (dead reckoning
+errors) away from the global coordinates. The code in this package is in charge
+of computing the position of the origin of the smooth frame in the UTM frame,
+and adjust that offset, so as to compensate for the drift.
+
+
+Frame definitions
+-----------------
+
+Utm frame (U)
+The Utm frame is fixed and global. The applanix tells us an estimate of the
+position of the car in this frame from GPS readings.
+
+local_utm frame (LU)
+The rational for the local_utm frame is to allow for transform expressed as
+floats, while coordinates in the utm frame require double precision.
+
+Smooth Applanix frame (A)
+The applanix node computes the "smooth" pose of the car by integrating the
+velocity. The origin of this frame is fixed to the location of the car u0 in
+(U) when the node starts. This frame does not appear in the TF tree.
+
+Smooth frame (S)
+As the smooth coordinates are computed by integrating the applanix velocity,
+the error between the smooth coordinates and the utm coordinates will drift
+with an unbounded error. Therefore, we can adjust the offset between (SA) and
+(S) so that the error is close to 0. The fake localizer does this by computing
+the offset as the difference between the utm coordinates and the smooth
+coordinates. The velodyne localizer does this by localizing the car w.r.t. a
+laser intensity map.

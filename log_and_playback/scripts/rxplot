@@ -1,0 +1,264 @@
+#!/usr/bin/env python
+
+import sys
+import os
+import subprocess, yaml
+import argparse
+import rospy
+import rosbag
+from pylab import *
+
+
+
+# ========================================================================== #
+# Message description parsing
+#
+
+
+def nspaces(line):
+    ''' A helper function to count the numnber of leading whitespaces.'''
+    #NOTE: there is probably a better way but this will do for now
+    nw = 0
+    for c in line:
+        if c == ' ':
+            nw = nw + 1
+        else:
+            break
+    return nw
+
+
+class MessageParser:
+    '''A helper class to get and parse a message description.
+
+    Skips constants declarations, header, and arrays. Constructs the fields array,
+    which is an array of tupples. The first element of the tupple is the
+    field type, the second is the field name appropriately prefixed.
+
+    For instance, for the following msg:
+    Header header
+    geometry_msgs/Point32 point
+    float64[] values
+    float64[4] values4
+    float32 intensity
+    
+
+    It should return
+    [('float32', 'point/x'),
+     ('float32', 'point/y'),
+     ('float32', 'point/z'),
+     ('float32', 'intensity')]
+    '''
+    
+    def __init__(self, msg_type):
+        self.msg_desc = subprocess.Popen(['rosmsg', 'show', msg_type], stdout=subprocess.PIPE).communicate()[0].split('\n')
+        self.nLines = len(self.msg_desc)
+        self.line_i = 0
+        self.path_tree = []
+        self.fields = []
+        self.parse()
+
+    def parse(self, prefix=''):
+        line = self.msg_desc[self.line_i]
+        block_indent_nw = nspaces(line)
+        last_el = ''
+        
+        while self.line_i < self.nLines:
+            line = self.msg_desc[self.line_i]
+            
+            if len(line)==0 or '=' in line:
+                self.line_i = self.line_i + 1
+                continue
+
+            S = line.strip().split(' ')
+            if len(S)!=2:
+                raise Exception('wrong number of fields: ' + line)
+            field_type = S[0]
+            field_name = S[1]
+            nw = line.find(field_type)
+
+            if nw>block_indent_nw:
+                self.fields = self.fields[:-1]
+                self.parse(prefix+last_el+'/')
+                continue
+            elif nw<block_indent_nw:
+                return
+            else:
+                if ('[' in field_type and ']' in field_type) or field_name=='header': #skipping arrays and header
+                    self.line_i = self.line_i + 1
+                    while self.line_i<self.nLines and nspaces(self.msg_desc[self.line_i])>nw:
+                        self.line_i = self.line_i + 1
+                    if self.line_i>=self.nLines:
+                        return
+                    continue
+                else:
+                    last_el = field_name
+                    self.fields.append((field_type, prefix+field_name))
+                    self.line_i = self.line_i + 1
+        
+
+def getMsgFields(msg_type):
+    '''Returns the message's fields as parsed by MessageParser.'''
+    parser = MessageParser(msg_type)
+    return parser.fields
+
+
+#print getMsgFields('nav_msgs/Odometry')
+#sys.exit(0)
+
+    
+# ========================================================================== #
+
+
+
+# Argument parser
+parser = argparse.ArgumentParser()
+parser.add_argument('-s', '--start', metavar='SEC', type=double,
+                   help='start SEC seconds into the bag files')
+parser.add_argument('-u', '--duration', metavar='SEC', type=double,
+                   help='play only SEC seconds from the bag files')
+parser.add_argument('bags_and_topics', metavar='BAGS TOPICS', type=str, nargs='+',
+                    help='List of bags and topics to plots')
+args = parser.parse_args()
+
+
+# parse the arguments to separate the bag files from the list of topics
+bags = []
+topic_args = []
+for arg in args.bags_and_topics:
+    if arg.endswith('.bag') and os.path.exists(arg):
+        bags.append(arg)
+    else:
+        topic_args.append(arg)
+
+        
+if len(topic_args)==0:
+    print 'You need to provide at least one topic name'
+    sys.exit(1)
+if len(bags)==0:
+    print 'You need to provide at least one bag'
+    sys.exit(1)
+
+
+# get the list of topics from the bags
+info_dict = yaml.load(subprocess.Popen(['rosbag', 'info', '--yaml'] + bags, stdout=subprocess.PIPE).communicate()[0])
+all_topics = dict(zip([t['topic'] for t in info_dict['topics']], [t['type'] for t in info_dict['topics']]))
+
+
+# figure the start time and end time
+start_time = info_dict['start']
+end_time = info_dict['end']
+if args.start:
+    start_time += args.start
+if args.duration:
+    end_time = start_time + args.duration
+
+
+    
+
+'''
+construct a database of topics to plot, and for each one, info such as which
+field, the multiplier, and the subplot id
+e.g. /topic1/a:b*10:c,/topic2 /topic3/x:y
+results in 2 subplots:
+ 1) - /topic1 field a
+    - /topic1 field b with a multiplier of 10
+    - /topic1 field c
+    - /topic2 (all fields)
+ 2) - /topic3 field x
+    - /topic3 field y
+
+topic_fields is a dictionary with an entry for each topic we are interested in.
+each entry is an array of dictionaries with keys 'field_path', 'mult', 'plot'
+- field_path is an array representing the path of the variable of interest in the message:
+  e.g. ['pose', 'pose', position', 'x'] represents field msg.pose.pose.position.x in message msg
+- mult is multiplier that defaults to 1
+- plot gives the subplot index
+'''
+
+class FieldDescription:
+    def __init__(self, path, plot):
+        self.path = path
+        self.mult = 1
+        self.plot = plot
+    def __repr__(self):
+        return '<'+self.name()+', %f, %d>' % (self.mult, self.plot)
+    def name(self):
+        return '/'.join(self.path)
+
+topic_fields = {}
+
+def addFieldDesc(field_desc, t):
+    if t in topic_fields:
+        for fd in topic_fields[t]:
+            if fd.name()==field_desc.name():
+                print 'Added the same field twice, not supported!'
+                sys.exit(1)
+        topic_fields[t].append(field_desc)
+    else:
+        topic_fields[t] = [field_desc]
+
+for plot_idx, topic_arg in enumerate(topic_args):
+    if topic_arg[0] is not '/':
+        topic_arg = '/'+ topic_arg
+    for topic_desc in topic_arg.split(','):
+        for t in all_topics.keys():
+            if topic_desc.startswith(t):
+                if len(topic_desc)==len(t):
+                    for field in getMsgFields(all_topics[t]):
+                        addFieldDesc(FieldDescription(field[1].split('/'), plot_idx), t)
+                else:
+                    field_path_decomposition = topic_desc[len(t):].strip('/').split('/')
+                    field_path_stem = field_path_decomposition[-1]
+                    for field_desc_str in field_path_stem.split(':'):
+                        field_desc = FieldDescription(field_path_decomposition[:-1], plot_idx)
+                        if '*' in field_desc_str:
+                            f, m = field_desc_str.split('*')
+                            field_desc.mult = float(m)
+                            field_desc.path.append(f)
+                        else:
+                            field_desc.path.append(field_desc_str)
+                        addFieldDesc(field_desc, t)
+
+if len(topic_fields.keys())==0:
+    print 'None of the provided topics could be found in the bag'
+    sys.exit(1)
+
+#print topic_fields
+#sys.exit(0)
+
+
+
+# Load the data from the bag
+# key: topic+field name
+# value: ([t], [v])
+nSubPlots = len(topic_args)
+data_series = [{} for i in range(nSubPlots)]
+for bag in bags:
+    for topic, msg, t in rosbag.Bag(bag).read_messages(topics=topic_fields.keys(),
+                                                        start_time=rospy.Time(start_time),
+                                                        end_time=rospy.Time(end_time)):
+        fields = topic_fields[topic]
+        if fields is None:
+            fields = msg.__slots__
+        for f in fields:
+            topic_field = topic + '/' + f.name()
+            if f.mult!=1:
+                topic_field = topic_field + '(*' + str(f.mult) + ')'
+            try:
+                data = data_series[f.plot][topic_field]
+            except KeyError:
+                data = ([], [])
+                data_series[f.plot][topic_field] = data
+            data[0].append(t.to_sec())
+            tmp_data = msg
+            for field in f.path:
+              tmp_data = tmp_data.__getattribute__(field)
+            data[1].append(tmp_data * f.mult)
+
+
+for plot_id, data_serie in enumerate(data_series):
+    subplot(nSubPlots, 1, plot_id+1)
+    for k,v in data_serie.iteritems():
+        plot(v[0], v[1], label=k)
+    legend(loc=0)
+show()

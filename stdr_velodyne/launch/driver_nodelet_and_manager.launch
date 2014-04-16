@@ -1,0 +1,16 @@
+<launch>
+  <!-- start nodelet manager and load driver nodelet -->
+
+  <group ns="/driving/velodyne">
+  
+    <node pkg="nodelet" type="nodelet" name="nodelet_manager" args="manager" />
+
+    <node pkg="nodelet" type="nodelet" name="velodyne_driver_nodelet"
+      args="load velodyne_driver/DriverNodelet nodelet_manager" >
+      <remap from="velodyne_packets" to="packets"/>
+      <rosparam command="load" file="$(find velodyne)/launch/driver_params.yaml"/>
+    </node>
+
+  </group>
+
+</launch>

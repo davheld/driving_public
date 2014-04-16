@@ -1,0 +1,11 @@
+<launch>
+    <group ns="/driving/velodyne">
+        <node pkg="velodyne" type="conversion" name="velodyne_conversion"/>
+        <node pkg="velodyne" type="pointcloud" name="velodyne_pointcloud"/>
+        <node pkg="velodyne" type="aggregator_node" name="aggregator_node">
+            <remap from="input" to="points" />
+            <remap from="output" to="points_agg" />
+            <param name="target_frame" type="string" value="smooth" />
+        </node>
+    </group>
+</launch>

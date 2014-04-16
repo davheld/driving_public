@@ -1,0 +1,43 @@
+<?xml version="1.0"?>
+<package>
+  <name>log_and_playback</name>
+  <version>0.0.0</version>
+  <description>Utilities for logging and playing back data.
+
+  The log_run script records the raw sensor data in separate bag files.
+  The raw playback scripts can read the raw sensor data from bag files and
+  DGC files, and play it back while launching the appropriate nodes to
+  recreate most of the data used for perception: velodyne points, localization
+  information, etc.
+  </description>
+
+  <maintainer email="brice.rebsamen@gmail.com">Brice Rebsamen</maintainer>
+
+  <license>TODO</license>
+
+  <author email="brice.rebsamen@gmail.com">Brice Rebsamen</author>
+
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>roscpp</build_depend>
+  <build_depend>stdr_msgs</build_depend>
+  <build_depend>stdr_lib</build_depend>
+  <build_depend>blf</build_depend>
+  <build_depend>dgc_transform</build_depend>
+  <build_depend>localize</build_depend>
+  <build_depend>stdr_velodyne</build_depend>
+  <build_depend>ladybug_playback</build_depend>
+  <!--build_depend>gperftools</build_depend-->
+  
+  <run_depend>roscpp</run_depend>
+  <run_depend>stdr_msgs</run_depend>
+  <run_depend>stdr_lib</run_depend>
+  <run_depend>blf</run_depend>
+  <run_depend>dgc_transform</run_depend>
+  <run_depend>localize</run_depend>
+  <run_depend>stdr_velodyne</run_depend>
+  <run_depend>ladybug_playback</run_depend>
+  <!--run_depend>gperftools</run_depend-->
+
+</package>

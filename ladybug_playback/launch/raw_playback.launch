@@ -1,0 +1,8 @@
+<launch>
+  <!-- nodelet manager process -->
+  <node pkg="nodelet" type="nodelet" name="nodelet_manager"
+        ns="/driving/ladybug"
+        args="manager" />
+  
+  <include file="$(find ladybug_playback)/launch/recombine_nodelet.launch"/>
+</launch>

@@ -1,0 +1,3 @@
+- git: {local-name: stdr_libraries, uri: 'https://github.com/StanfordDrivingTeam/stdr_libraries.git'}
+- git: {local-name: tf, uri: 'https://github.com/StanfordDrivingTeam/tf.git'}
+- git: {local-name: driving_public, uri: 'https://github.com/StanfordDrivingTeam/driving_public.git'}

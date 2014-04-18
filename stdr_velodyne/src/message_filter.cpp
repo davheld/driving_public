@@ -45,7 +45,7 @@ bool SpinCollector::add(const PointCloud & packet, PointCloud & spin)
   const double a1 = angles::from_degrees(packet.back().encoder*.01);
   const double a2 = angles::from_degrees(packet.front().encoder*.01);
   ROS_DEBUG_NAMED("SpinCollector",
-                  "Received a partial spin (%d points, %f degrees)."
+                  "Received a partial spin (%zd points, %f degrees)."
                   " Last point stamp=%f. Delay: %fms.",
                   packet.points.size(),
                   angles::to_degrees(angles::shortest_angular_distance(a2, a1)),

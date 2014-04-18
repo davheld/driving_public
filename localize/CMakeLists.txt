@@ -44,3 +44,11 @@ target_link_libraries(fake_localizer ${PROJECT_NAME})
 
 add_executable(localize_pose_tf_broadcaster src/localize_pose_tf_broadcaster.cpp)
 target_link_libraries(localize_pose_tf_broadcaster ${PROJECT_NAME})
+
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
+
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})

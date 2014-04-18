@@ -3,13 +3,12 @@ project(log_and_playback)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 find_package(catkin REQUIRED COMPONENTS 
-  roscpp stdr_msgs stdr_lib blf dgc_transform localize stdr_velodyne ladybug_playback
+  roscpp stdr_msgs stdr_lib blf dgc_transform localize stdr_velodyne ladybug_playback gperftools
 )
 
 find_package(Boost REQUIRED COMPONENTS iostreams program_options)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR})
-find_package(Gperftools REQUIRED)
 
 
 catkin_package(
@@ -19,7 +18,7 @@ catkin_package(
   DEPENDS Boost
 )
 
-include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${GPERFTOOLS_INCLUDE_DIR})
+include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 add_library(${PROJECT_NAME}
   src/bag_reader.cpp

@@ -140,13 +140,24 @@ if len(bags)==0:
 
 
 # get the list of topics from the bags
-info_dict = yaml.load(subprocess.Popen(['rosbag', 'info', '--yaml'] + bags, stdout=subprocess.PIPE).communicate()[0])
-all_topics = dict(zip([t['topic'] for t in info_dict['topics']], [t['type'] for t in info_dict['topics']]))
+all_topics = {}
+start_time = None
+end_time = None
+for b in bags:
+    info_dict = yaml.load(subprocess.Popen(['rosbag', 'info', '--yaml', b], stdout=subprocess.PIPE).communicate()[0])
+    try:
+        all_topics.update(dict(zip([t['topic'] for t in info_dict['topics']], [t['type'] for t in info_dict['topics']])))
+        if start_time is None:
+            start_time = info_dict['start']
+        else:
+            start_time = min([start_time, info_dict['start']])
+        if end_time is None:
+            end_time = info_dict['end']
+        else:
+            end_time = max([end_time, info_dict['end']])
+    except KeyError:
+        pass
 
-
-# figure the start time and end time
-start_time = info_dict['start']
-end_time = info_dict['end']
 if args.start:
     start_time += args.start
 if args.duration:

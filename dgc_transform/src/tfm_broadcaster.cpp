@@ -95,7 +95,13 @@ int main(int argc, char **argv)
   }
   else {
     // we were given a parameter
-    GET_ROS_PARAM_ABORT(nh, filename_param, filename);
+    try {
+      GET_ROS_PARAM_ABORT(nh, filename_param, filename);
+    }
+    catch(ros::InvalidNameException &e) {
+      ROS_FATAL_STREAM("Argument " <<filename_param <<" is neither a valid file nor a valid parameter name.");
+      ROS_BREAK();
+    }
 
     if( ! boost::filesystem::exists(filename) ) {
       ROS_FATAL_STREAM("Argument " <<filename_param <<" could not be resolved to a valid file.");

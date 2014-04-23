@@ -62,7 +62,11 @@ target_link_libraries(conversion ${PROJECT_NAME})
 add_executable(pointcloud src/pointcloud/pointcloud_node.cpp)
 target_link_libraries(pointcloud ${PROJECT_NAME})
 
-add_executable(aggregator_node src/aggregator_node.cpp)
-target_link_libraries(aggregator_node ${PROJECT_NAME})
+add_executable(stdr_velodyne_aggregator_node src/aggregator_node.cpp)
+target_link_libraries(stdr_velodyne_aggregator_node ${PROJECT_NAME})
+set_target_properties(stdr_velodyne_aggregator_node
+                      PROPERTIES OUTPUT_NAME aggregator_node
+                      PREFIX "")
+
 # make sure configure headers are built before using them
 add_dependencies(aggregator_node ${PROJECT_NAME}_gencfg)

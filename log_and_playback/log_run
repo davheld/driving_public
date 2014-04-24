@@ -10,25 +10,37 @@ import sys
 import signal
 import subprocess
 import time
+import tarfile
 import datetime
 
-def rename_bag_files(name):
-  active = True
-  while active:
-    files = os.listdir(sys.argv[1])
-    active = False
-    for f in files:
-      if f.startswith("tmplog") and f.endswith('bag.active'):
-        active = True
-    if active:
-      time.sleep(1)
-        
-  files = os.listdir(sys.argv[1])
-  for f in files:
-    if f.startswith("tmplog") and f.endswith('bag'):
-      s = "".join([sys.argv[1], "/", f])
-      d = "".join([sys.argv[1], "/", name, '-', datestmp, f[6:]])
-      os.rename(s,d)
+
+# ---------------------------------------------------------------------------
+
+
+# parameter name of the config files to save
+config_files_param = (
+  '/driving/velodyne/cal_file',
+  '/driving/velodyne/ext_file', 
+  '/driving/velodyne/int_file'
+)
+
+vlftopics = ["/driving/velodyne/packets"]
+applanixtopics = ["/driving/ApplanixPose", "/driving/ApplanixGPS", 
+  "/driving/ApplanixRMS", "/driving/ApplanixDMI"]
+ladybugtopics = ["/driving/ladybug/images"]
+topicstoskip = ["/driving/velodyne/points", "/driving/velodyne/colored", 
+  "/driving/velodyne/points_agg", "/driving/velodyne/raw_scans", 
+  "/driving/smooth", "/tf", 
+  "/driving/perception/classification_result", "/driving/perception_velodyne"]
+
+def skip_topic(t):
+  if t.startswith("/driving/ladybug/") or t.endswith("/bond") or \
+    t.endswith("/parameter_descriptions") or t.endswith("/parameter_updates"):
+    return True
+  return False
+
+      
+# ---------------------------------------------------------------------------
 
 
 # get and check the target directory
@@ -44,18 +56,50 @@ if not os.path.exists(sys.argv[1]):
 else:
   subprocess.call("".join(("rm -rf ", sys.argv[1], "/tmplog*")), shell=True)
 
+  
+# ---------------------------------------------------------------------------
+
 
 # separate topics into groups
 rostopic = subprocess.Popen(["rostopic","list"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 alltopics = rostopic.communicate()[0].splitlines()
-vlftopics = ["/driving/velodyne/packets"]
-applanixtopics = ["/driving/ApplanixPose", "/driving/ApplanixGPS", "/driving/ApplanixRMS", "/driving/ApplanixDMI"]
-ladybugtopics = ["/driving/ladybug/images"]
-topicstoskip = ["/driving/velodyne/points", "/driving/velodyne/colored", "/driving/velodyne/points_agg", "/driving/smooth", "/tf", "/driving/perception/classification_result"] \
-  + [t for t in alltopics if t.startswith("/driving/ladybug/")] \
-  + [t for t in alltopics if t.endswith("/bond")]
-
+topicstoskip.extend( [t for t in alltopics if skip_topic(t)] )
 generaltopics = list(set(alltopics)-set(topicstoskip)-set(vlftopics+applanixtopics+ladybugtopics))
+
+
+# ---------------------------------------------------------------------------
+# get the parameters and config files
+
+# store in a tar.gz file
+tar = tarfile.open("tmplog.tar.gz", "w:gz")
+
+def get_param(name):
+  ''' A helper function to retrieve parameters using rosparam. '''
+  rosparam = subprocess.Popen(["rosparam","get",name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+  param_o = rosparam.communicate()[0].splitlines()
+  if len(param_o)>1:
+    raise KeyError("parameter " + name + " could not be resolved to a single value")
+  elif len(param_o)==0:
+    raise KeyError("parameter " + name + " could not be found")
+  return param_o[0]
+
+# save all the config files into the archive, with proper naming:
+# name after the parameter name, replacing slashes by __
+# and keep the original extension.
+for p in config_files_param:
+  cfg_file = get_param(p)
+  ext = os.path.splitext(cfg_file)[1]
+  basename = '__'.join(p.strip('/').split('/'))
+  tar.add(cfg_file, arcname=basename+ext)
+
+subprocess.call(['rosparam', 'dump', 'params.yaml'])
+tar.add('params.yaml')
+os.remove('params.yaml')
+
+tar.close()
+
+
+# ---------------------------------------------------------------------------
 
 
 # date stamp
@@ -76,6 +120,29 @@ if len(generaltopics)>0:
   loggers.append( makeLogger("tmplog", generaltopics) )
 
 
+# ---------------------------------------------------------------------------
+
+
+def rename_bag_files(name):
+  active = True
+  while active:
+    files = os.listdir(sys.argv[1])
+    active = False
+    for f in files:
+      if f.startswith("tmplog") and f.endswith('bag.active'):
+        active = True
+    if active:
+      time.sleep(1)
+        
+  files = os.listdir(sys.argv[1])
+  for f in files:
+    if f.startswith("tmplog") and (f.endswith('bag') or f.endswith('tar.gz')):
+      s = sys.argv[1] + "/" + f
+      d = sys.argv[1] + "/" + name + '-' + datestmp + f[6:]
+      os.rename(s,d)
+    
+
+      
 def exithandler(signum, frame):
   for logger in loggers:
     if logger.returncode == None:
@@ -95,14 +162,16 @@ def exithandler(signum, frame):
 signal.signal(signal.SIGINT, exithandler)
 
 
+# ---------------------------------------------------------------------------
+
+
 starttime = time.time();
 while True:
   time.sleep(1)
   curtime = time.time();
   diff = time.gmtime(curtime - starttime);
   sys.stdout.write("                                                \r")
-  sys.stdout.write("".join(("Logfile time elapsed ", \
-      time.strftime("%H:%M:%S",diff), "\r")))
+  sys.stdout.write("Logfile time elapsed " + time.strftime("%H:%M:%S",diff) + "\r")
   sys.stdout.flush()
   for logger in loggers:
     logger.poll()

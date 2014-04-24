@@ -224,8 +224,8 @@ void cfgCallback(stdr_velodyne::AggregatorConfig &config, uint32_t level)
 
 void connectCb()
 {
-  ros::NodeHandle nh("~");
-  sub.reset( new ros::Subscriber(nh.subscribe("points", 10000, &velCallBack)) );
+  ros::NodeHandle nh;
+  sub.reset( new ros::Subscriber(nh.subscribe("input", 10000, &velCallBack)) );
 }
 
 void disconnectCb()
@@ -238,7 +238,7 @@ void disconnectCb()
 int main(int argc, char** argv)
 {
   ros::init(argc, argv, "velodyne_aggregator");
-  ros::NodeHandle nh("~");
+  ros::NodeHandle nh;
 
   dynamic_reconfigure::Server<stdr_velodyne::AggregatorConfig> server;
   server.setCallback( boost::bind(&cfgCallback, _1, _2) );

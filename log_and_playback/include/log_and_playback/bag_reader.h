@@ -54,17 +54,17 @@ public:
   BagReader();
   ~BagReader();
 
-  // loads a bag file
-  void load_bag(const std::string& bagpath);
+  /// loads a bag file. Optionally skip the first @param skip seconds.
+  void load_bag(const std::string& bagpath, ros::Duration skip=ros::Duration(0));
 
-  // loads several bag files
-  void load_bags(const std::vector< std::string > & bagpaths);
+  /// loads several bag files. Optionally skip the first @param skip seconds.
+  void load_bags(const std::vector< std::string > & bagpaths, ros::Duration skip=ros::Duration(0));
 
   bool next();
   bool ok() const;
 
-  double time() const
-  { return bag_it_->getTime().toSec(); }
+  ros::Time time() const
+  { return bag_it_->getTime(); }
 
   stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const
   { return bag_it_->instantiate<stdr_msgs::ApplanixPose>(); }

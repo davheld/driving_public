@@ -66,10 +66,10 @@ using std::cout;
 using std::endl;
 
 
-void updateProgressBar(const char *name, double t, double tmin, double tmax)
+void updateProgressBar(const char *name, const ros::Time& t, const ros::Time& tmin, const ros::Time& tmax)
 {
   printf("%s: ", name);
-  int percent = std::max(std::min((int)((t-tmin)/(tmax-tmin)*100), 100), 0);
+  const int percent = std::max(std::min((int)((t-tmin).toSec()/(tmax-tmin).toSec()*100), 100), 0);
   putchar('|');
   for(int i=0; i<100; i+=5)
     putchar(i<percent ? '=' : ' ');
@@ -90,10 +90,10 @@ std::string make_new_filename(const std::string & fn,
 
 #define PROC(T, f)                                                           \
   if( stdr_msgs::T::ConstPtr msg = it->instantiate<stdr_msgs::T>() ) { \
-    if( first_timestamp<0 ) first_timestamp = msg->header.stamp.toSec();     \
+    if( first_timestamp==ros::TIME_MIN ) first_timestamp = msg->header.stamp;\
     f(*msg, first_timestamp, os);                                            \
     os <<std::endl;                                                          \
-    updateProgressBar("applanix", msg->header.stamp.toSec(), first_timestamp, last_timestamp); \
+    updateProgressBar("applanix", msg->header.stamp, first_timestamp, last_timestamp); \
     continue;                                                               \
   }
 
@@ -116,8 +116,8 @@ void convertApplanix(const rosbag::Bag & bag, const std::string & bag_filename)
   os.push(boost::iostreams::file_sink(out_filename.c_str(), std::ios_base::out | std::ios_base::binary));
 
   // Read and convert all applanix messages
-  double first_timestamp = -1;
-  const double last_timestamp = view.getEndTime().toSec();
+  ros::Time first_timestamp = ros::TIME_MIN;
+  const ros::Time last_timestamp = view.getEndTime();
   for( rosbag::View::iterator it=view.begin(); it!=view.end(); ++it )
   {
     PROC(ApplanixPose, streamApplanixPoseAsDgcV2);
@@ -141,19 +141,19 @@ void convertVelodyne(const rosbag::Bag & bag, const std::string & bag_filename)
   std::ofstream os(out_filename.c_str(), std::ios_base::out | std::ios_base::binary);
 
   // Read and convert all scans
-  const double first_timestamp = view.getBeginTime().toSec();
-  const double last_timestamp = view.getEndTime().toSec();
+  const ros::Time first_timestamp = view.getBeginTime();
+  const ros::Time last_timestamp = view.getEndTime();
   for( rosbag::View::iterator it=view.begin(); it!=view.end(); ++it ) {
     velodyne_msgs::VelodyneScan::ConstPtr velodyne_scan = it->instantiate<velodyne_msgs::VelodyneScan>();
     if( velodyne_scan ) {
       blf::vlf::write(*velodyne_scan, os);
-      updateProgressBar("velodyne", velodyne_scan->header.stamp.toSec(), first_timestamp, last_timestamp);
+      updateProgressBar("velodyne", velodyne_scan->header.stamp, first_timestamp, last_timestamp);
     }
     else {
       stdr_msgs::RawScans::ConstPtr raw_scans = it->instantiate<stdr_msgs::RawScans>();
       if( raw_scans ) {
         blf::vlf::write(*raw_scans, os);
-        updateProgressBar("velodyne", raw_scans->header.stamp.toSec(), first_timestamp, last_timestamp);
+        updateProgressBar("velodyne", raw_scans->header.stamp, first_timestamp, last_timestamp);
       }
     }
   }
@@ -171,12 +171,12 @@ void convertLadybug(const rosbag::Bag & bag, const std::string & bag_filename)
   const std::string out_filename = make_new_filename(bag_filename, ".ladybug", ".llf");
   blf::LLFWriter writer(out_filename);
 
-  const double first_timestamp = view.getBeginTime().toSec();
-  const double last_timestamp = view.getEndTime().toSec();
+  const ros::Time first_timestamp = view.getBeginTime();
+  const ros::Time last_timestamp = view.getEndTime();
   for( rosbag::View::iterator it=view.begin(); it!=view.end(); ++it ) {
     if( stdr_msgs::LadybugImages::ConstPtr imgs = it->instantiate<stdr_msgs::LadybugImages>() ) {
       writer.write(*imgs);
-      updateProgressBar("ladybug", imgs->header.stamp.toSec(), first_timestamp, last_timestamp);
+      updateProgressBar("ladybug", imgs->header.stamp, first_timestamp, last_timestamp);
     }
   }
   updateProgressBar("ladybug", last_timestamp, first_timestamp, last_timestamp);

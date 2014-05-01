@@ -62,7 +62,7 @@ bool isExtension(const std::string & path, const std::string & ext)
   return path.length()>ext.length() && path.substr(path.length()-ext.length()).compare(ext)==0;
 }
 
-void DataReader::load(const std::vector<std::string> & logs)
+void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
 {
   bool dgc=false, bag=false;
   BOOST_FOREACH(std::string const & path, logs)
@@ -82,11 +82,11 @@ void DataReader::load(const std::vector<std::string> & logs)
   }
   else if( dgc ) {
     reader_ = new CombinedDgcLogsReader;
-    ((CombinedDgcLogsReader *)reader_)->load_logs(logs);
+    ((CombinedDgcLogsReader *)reader_)->load_logs(logs, skip);
   }
   else if( bag ) {
     reader_ = new BagReader;
-    ((BagReader *)reader_)->load_bags(logs);
+    ((BagReader *)reader_)->load_bags(logs, skip);
   }
   else {
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("Unrecognized log file formats"));
@@ -174,18 +174,29 @@ void BagTFListener::addStaticTransform(const tf::StampedTransform & t)
 }
 
 
-
-SpinReader::SpinReader()
-: do_I_own_the_data_reader_(false), data_reader_(0)
-, config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
+void SpinReader::addOptions(boost::program_options::options_description& opts_desc)
 {
   opts_desc.add_options()
+    ("start,s", bpo::value<double>()->default_value(0), "start SEC seconds into the bag files")
     ("nocal", "do not load any calibration file (i.e. use the default config).")
     ("cal", bpo::value<std::string>(), "velodyne calibration file")
     ("vtfm", bpo::value<std::string>(), "velodyne TFM file")
     ("logs", bpo::value< std::vector<std::string> >()->required(), "log files to load (bags or dgc logs)")
     ;
+}
+
+void SpinReader::addOptions(boost::program_options::positional_options_description& pos_opts_desc)
+{
   pos_opts_desc.add("logs", -1);
+}
+
+
+
+SpinReader::SpinReader()
+: do_I_own_the_data_reader_(false), data_reader_(0)
+, config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
+{
+
 }
 
 SpinReader::~SpinReader()
@@ -206,12 +217,12 @@ void SpinReader::unsetDataReader()
     delete data_reader_;
 }
 
-void SpinReader::load(const std::vector< std::string > &logs)
+void SpinReader::load(const std::vector< std::string > &logs, ros::Duration skip)
 {
   unsetDataReader();
   data_reader_ = new DataReader();
   do_I_own_the_data_reader_ = true;
-  ((DataReader *)data_reader_)->load(logs);
+  ((DataReader *)data_reader_)->load(logs, skip);
 }
 
 stdr_velodyne::PointCloudConstPtr SpinReader::getSpin() const

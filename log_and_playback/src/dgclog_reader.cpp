@@ -84,7 +84,7 @@ bool LogDataReader::next()
     if( ok_ && std::getline(stream_, line_) ) {
       pose_ = parseApplanix(line_);
       if( pose_ ) {
-        time_ = pose_->header.stamp.toSec();
+        time_ = pose_->header.stamp;
         return true;
       }
     }
@@ -155,7 +155,7 @@ bool VlfDataReader::next()
   scan_->header.frame_id = "velodyne";
   scan_->header.stamp = packet.stamp;
   scan_->packets.push_back(packet);
-  time_ = scan_->header.stamp.toSec();
+  time_ = scan_->header.stamp;
 
   return ok_;
 }
@@ -186,8 +186,10 @@ bool LlfDataReader::next()
   imgs_.reset(new stdr_msgs::LadybugImages);
 
   try {
-    llf_.readNextPacket(&time_, &(img_->data));
-    img_->header.stamp.fromSec(time_);
+    double t;
+    llf_.readNextPacket(&t, &(img_->data));
+    time_.fromSec(t);
+    img_->header.stamp = time_;
     ladybug_playback::separateImages(*imgs_, *img_);
   }
   catch( stdr::ex::EOFError & e ) {
@@ -208,7 +210,7 @@ bool data_reader_time_compare(const AbstractDataReader *a, const AbstractDataRea
   return a->time() < b->time();
 }
 
-void CombinedDgcLogsReader::load_logs(const std::vector<std::string> & logs)
+void CombinedDgcLogsReader::load_logs(const std::vector<std::string> & logs, ros::Duration skip)
 {
   ok_ = false;
   readers_.clear();
@@ -238,11 +240,15 @@ void CombinedDgcLogsReader::load_logs(const std::vector<std::string> & logs)
     ok_ = true;
   }
   std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
+
+  time_ = readers_.front()->time();
+  const ros::Time start_time = time_ + skip;
+  while( time_ < start_time && next() );
 }
 
 bool CombinedDgcLogsReader::next()
 {
-  static double last_time=-1;
+  static ros::Time last_time=ros::TIME_MIN;
   for( Readers::iterator it = readers_.begin(); it!=readers_.end(); ) {
     if( ! (*it)->ok() )
       it = readers_.erase(it);
@@ -260,9 +266,8 @@ bool CombinedDgcLogsReader::next()
   std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
 
   time_ = readers_.front()->time();
-  if( last_time>=0 && time_ < last_time ) {
+  if( time_ < last_time )
     ROS_WARN("negative time change");
-  }
   last_time = time_;
   ok_ = true;
   return true;

@@ -63,13 +63,13 @@ bool isApplanix(const std::string & line);
 stdr_msgs::ApplanixPose::Ptr parseApplanix(const std::string & line);
 
 /// Streams the ApplanixPose to the stream
-void streamApplanixPoseAsDgcV2(const stdr_msgs::ApplanixPose &, double first_timestamp, std::ostream &);
+void streamApplanixPoseAsDgcV2(const stdr_msgs::ApplanixPose &, ros::Time first_timestamp, std::ostream &);
 
-void streamApplanixRMSAsDgc(const stdr_msgs::ApplanixRMS &, double first_timestamp, std::ostream &);
+void streamApplanixRMSAsDgc(const stdr_msgs::ApplanixRMS &, ros::Time first_timestamp, std::ostream &);
 
-void streamApplanixGPSAsDgc(const stdr_msgs::ApplanixGPS &, double first_timestamp, std::ostream &);
+void streamApplanixGPSAsDgc(const stdr_msgs::ApplanixGPS &, ros::Time first_timestamp, std::ostream &);
 
-void streamApplanixDMIAsDgc(const stdr_msgs::ApplanixDMI &, double first_timestamp, std::ostream &);
+void streamApplanixDMIAsDgc(const stdr_msgs::ApplanixDMI &, ros::Time first_timestamp, std::ostream &);
 
 } //namespace log_and_playback
 

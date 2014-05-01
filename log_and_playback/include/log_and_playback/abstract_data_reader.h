@@ -61,7 +61,7 @@ public:
   virtual bool ok() const = 0;
 
   /// timestamp of current message
-  virtual double time() const = 0;
+  virtual ros::Time time() const = 0;
 
   virtual stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const
   { return stdr_msgs::ApplanixPose::ConstPtr(); }

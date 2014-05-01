@@ -58,11 +58,13 @@ int main(int argc, char **argv)
   namespace bpo = boost::program_options;
   bpo::options_description opts_desc("Allowed options");
   opts_desc.add_options()("help,h", "produce help message");
-  opts_desc.add(spin_reader.opts_desc);
+  SpinReader::addOptions(opts_desc);
+  boost::program_options::positional_options_description pos_opts_desc;
+  SpinReader::addOptions(pos_opts_desc);
   bpo::variables_map opts;
 
   try {
-    bpo::store(bpo::command_line_parser(argc, argv).options(opts_desc).positional(spin_reader.pos_opts_desc).run(), opts);
+    bpo::store(bpo::command_line_parser(argc, argv).options(opts_desc).positional(pos_opts_desc).run(), opts);
     if( opts.count("help") ) {
       cout << "Usage: example_spin_reader [OPTS] logs" << endl;
       cout << endl;
@@ -82,7 +84,9 @@ int main(int argc, char **argv)
   try {
     spin_reader.loadCalibrationFromProgramOptions(opts);
     spin_reader.loadTFMFromProgramOptions(opts);
-    spin_reader.load( opts["logs"].as< std::vector<std::string> >() );
+    spin_reader.load(
+          opts["logs"].as< std::vector<std::string> >(),
+          ros::Duration(opts["start"].as<double>()) );
   } catch( std::exception & e ) {
     ROS_FATAL_STREAM(e.what());
     return 1;

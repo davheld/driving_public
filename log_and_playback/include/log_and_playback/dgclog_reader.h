@@ -62,7 +62,7 @@ public:
   /// Advances one data into the file. Returns false on EOF.
   bool next();
   bool ok() const { return ok_; }
-  double time() const { return time_; }
+  ros::Time time() const { return time_; }
 
   stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const;
   stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
@@ -74,7 +74,7 @@ private:
   std::string line_;
   bool ok_;
 
-  double time_;
+  ros::Time time_;
   stdr_msgs::ApplanixPose::ConstPtr pose_;
   stdr_msgs::ApplanixGPS::ConstPtr gps_;
   stdr_msgs::ApplanixRMS::ConstPtr rms_;
@@ -93,14 +93,14 @@ public:
   bool next();
   bool ok() const { return ok_; }
 
-  double time() const { return time_; }
+  ros::Time time() const { return time_; }
 
   velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const { return scan_; }
 
 private:
   std::ifstream vfile_;
   velodyne_msgs::VelodyneScan::Ptr scan_;
-  double time_;
+  ros::Time time_;
   bool ok_;
 };
 
@@ -117,13 +117,13 @@ public:
   bool next();
   bool ok() const { return ok_; }
 
-  double time() const { return time_; }
+  ros::Time time() const { return time_; }
 
   stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const { return imgs_; }
 
 private:
   bool ok_;
-  double time_;
+  ros::Time time_;
   blf::LLFReader llf_;
   sensor_msgs::Image::Ptr img_;
   stdr_msgs::LadybugImages::Ptr imgs_;
@@ -134,10 +134,11 @@ class CombinedDgcLogsReader : public AbstractDataReader
 {
 public:
   CombinedDgcLogsReader();
-  void load_logs(const std::vector<std::string> & logs);
+  /// Load the logs. Optionally skip the first @param skip seconds.
+  void load_logs(const std::vector<std::string> & logs, ros::Duration skip=ros::Duration(0));
   bool next();
   bool ok() const { return ok_; }
-  double time() const { return time_; }
+  ros::Time time() const { return time_; }
 
   stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const;
   stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
@@ -154,7 +155,7 @@ private:
   Readers readers_;
 
   bool ok_;
-  double time_;
+  ros::Time time_;
 };
 
 } //namespace log_and_playback

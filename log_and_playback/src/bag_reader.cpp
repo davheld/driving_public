@@ -57,14 +57,14 @@ BagReader::~BagReader()
   }
 }
 
-void BagReader::load_bag(const std::string& bagpath)
+void BagReader::load_bag(const std::string& bagpath, ros::Duration skip)
 {
   std::vector<std::string> bagpaths;
   bagpaths.push_back(bagpath);
-  load_bags(bagpaths);
+  load_bags(bagpaths, skip);
 }
 
-void BagReader::load_bags(const std::vector<std::string> & bagpaths)
+void BagReader::load_bags(const std::vector<std::string> & bagpaths, ros::Duration skip)
 {
   BOOST_FOREACH( boost::shared_ptr<rosbag::Bag> &bag, bags_ )
     bag->close();
@@ -84,9 +84,11 @@ void BagReader::load_bags(const std::vector<std::string> & bagpaths)
     boost::shared_ptr<rosbag::Bag> bag(new rosbag::Bag);
     bag->open(bagpath);
     bags_.push_back(bag);
-    view_->addQuery(*bag, rosbag::TopicQuery(topics));
+    rosbag::View view(*bag);
+    const ros::Time start_time = view.getBeginTime() + skip;
+    view_->addQuery(*bag, rosbag::TopicQuery(topics), start_time);
   }
-  double duration = (view_->getEndTime()-view_->getBeginTime()).toSec();
+  const double duration = (view_->getEndTime()-view_->getBeginTime()).toSec();
   ROS_INFO_STREAM("Duration: " <<duration);
   bag_it_ = view_->begin();
 }

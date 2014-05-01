@@ -63,11 +63,12 @@ public:
   DataReader();
   ~DataReader();
 
-  void load(const std::vector< std::string > &);
+  /// load the data from the logs. Optionally skip the first @param skip seconds.
+  void load(const std::vector< std::string > &logs, ros::Duration skip=ros::Duration(0));
 
   bool next();
   bool ok() const { return reader_ && reader_->ok(); }
-  double time() const { ROS_ASSERT(reader_); return reader_->time(); }
+  ros::Time time() const { ROS_ASSERT(reader_); return reader_->time(); }
 
   stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const;
   stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
@@ -136,8 +137,10 @@ public:
    *
    * Constructs a new data reader internally.
    * If a data reader is already set it is discarded first.
+   *
+   * Optionally skip the first @param skip seconds.
    */
-  void load(const std::vector< std::string > &logs);
+  void load(const std::vector< std::string > &logs, ros::Duration skip=ros::Duration(0));
 
   /// Returns the current spin
   stdr_velodyne::PointCloudConstPtr getSpin() const;
@@ -148,8 +151,9 @@ public:
   const BagTFListener & tfListener() const { return tf_listener_; }
   BagTFListener & tfListener() { return tf_listener_; }
 
-  boost::program_options::options_description opts_desc;
-  boost::program_options::positional_options_description pos_opts_desc;
+
+  static void addOptions(boost::program_options::options_description&);
+  static void addOptions(boost::program_options::positional_options_description&);
 
   /// loads the calibration file, from the option in vm if set,
   /// otherwise from rosparam. Throws a runtime_error if none of them is set,

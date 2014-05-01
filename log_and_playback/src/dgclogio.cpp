@@ -77,7 +77,7 @@ stdr_msgs::ApplanixPose::Ptr parseApplanix(const std::string & line)
   return stdr_msgs::ApplanixPose::Ptr();
 }
 
-void streamApplanixPoseAsDgcV2(const stdr_msgs::ApplanixPose & pose, double first_timestamp, std::ostream & os)
+void streamApplanixPoseAsDgcV2(const stdr_msgs::ApplanixPose & pose, ros::Time first_timestamp, std::ostream & os)
 {
   os <<"APPLANIX_POSE_V2 ";
 
@@ -105,11 +105,11 @@ void streamApplanixPoseAsDgcV2(const stdr_msgs::ApplanixPose & pose, double firs
   os <<pose.hardware_time_mode <<' ';
 
   os <<std::setprecision(std::numeric_limits<double>::digits10);
-  os <<pose.header.stamp.toSec() <<" nuthouse " <<(pose.header.stamp.toSec() - first_timestamp);
+  os <<pose.header.stamp.toSec() <<" nuthouse " <<(pose.header.stamp - first_timestamp).toSec();
 }
 
 
-void streamApplanixRMSAsDgc(const stdr_msgs::ApplanixRMS & rms, double first_timestamp, std::ostream & os)
+void streamApplanixRMSAsDgc(const stdr_msgs::ApplanixRMS & rms, ros::Time first_timestamp, std::ostream & os)
 {
   os <<"APPLANIX_RMS_V1 ";
 
@@ -132,7 +132,7 @@ void streamApplanixRMSAsDgc(const stdr_msgs::ApplanixRMS & rms, double first_tim
   os <<rms.hardware_time_mode;
 
   os <<std::setprecision(std::numeric_limits<double>::digits10);
-  os <<rms.header.stamp.toSec() <<" nuthouse " <<(rms.header.stamp.toSec() - first_timestamp);
+  os <<rms.header.stamp.toSec() <<" nuthouse " <<(rms.header.stamp - first_timestamp).toSec();
 }
 
 void streamGPS(int i, unsigned u, double d, std::ostream & os)
@@ -147,7 +147,7 @@ void streamGPS(int i, unsigned u, double d, std::ostream & os)
   os <<d <<' ';
 }
 
-void streamApplanixGPSAsDgc(const stdr_msgs::ApplanixGPS & gps, double first_timestamp, std::ostream & os)
+void streamApplanixGPSAsDgc(const stdr_msgs::ApplanixGPS & gps, ros::Time first_timestamp, std::ostream & os)
 {
   os <<"APPLANIX_GPS_V1 ";
 
@@ -155,10 +155,10 @@ void streamApplanixGPSAsDgc(const stdr_msgs::ApplanixGPS & gps, double first_tim
   streamGPS(gps.secondary_sats, gps.secondary_id, gps.secondary_timestamp, os);
   streamGPS(gps.gams_solution_code, gps.gams_id, gps.gams_timestamp, os);
 
-  os <<gps.header.stamp.toSec() <<" nuthouse " <<(gps.header.stamp.toSec() - first_timestamp);
+  os <<gps.header.stamp.toSec() <<" nuthouse " <<(gps.header.stamp - first_timestamp).toSec();
 }
 
-void streamApplanixDMIAsDgc(const stdr_msgs::ApplanixDMI & dmi, double first_timestamp, std::ostream & os)
+void streamApplanixDMIAsDgc(const stdr_msgs::ApplanixDMI & dmi, ros::Time first_timestamp, std::ostream & os)
 {
   os <<"APPLANIX_DMI_V1 ";
 
@@ -175,7 +175,7 @@ void streamApplanixDMIAsDgc(const stdr_msgs::ApplanixDMI & dmi, double first_tim
   os <<dmi.hardware_time_mode;
 
   os <<std::setprecision(std::numeric_limits<double>::digits10);
-  os <<dmi.header.stamp.toSec() <<" nuthouse " <<(dmi.header.stamp.toSec() - first_timestamp);
+  os <<dmi.header.stamp.toSec() <<" nuthouse " <<(dmi.header.stamp - first_timestamp).toSec();
 }
 
 } //namespace log_and_playback

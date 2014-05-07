@@ -1,4 +1,4 @@
-<library path="lib/libvelodyne">
+<library path="lib/libstdr_velodyne">
   
   <class name="stdr_velodyne/conversion"
          type="stdr_velodyne::ConversionNodelet"

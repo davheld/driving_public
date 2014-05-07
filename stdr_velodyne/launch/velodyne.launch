@@ -1,12 +1,12 @@
 <launch>
 
-  <include file="$(find velodyne)/launch/driver_nodelet_and_manager.launch" />
+  <include file="$(find stdr_velodyne)/launch/driver_nodelet_and_manager.launch" />
       
   <node pkg="nodelet" type="nodelet" name="velodyne_pointcloud_nodelet"
       ns="/driving/velodyne"
-      args="load velodyne/pointcloud nodelet_manager" />
+      args="load stdr_velodyne/pointcloud nodelet_manager" />
 
-  <node pkg="velodyne" type="aggregator_node" name="aggregator_node"
+  <node pkg="stdr_velodyne" type="aggregator_node" name="aggregator_node"
       ns="/driving/velodyne">
       <remap from="input" to="points" />
       <remap from="output" to="points_agg" />

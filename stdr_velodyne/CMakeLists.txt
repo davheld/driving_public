@@ -69,4 +69,4 @@ set_target_properties(stdr_velodyne_aggregator_node
                       PREFIX "")
 
 # make sure configure headers are built before using them
-add_dependencies(aggregator_node ${PROJECT_NAME}_gencfg)
+add_dependencies(stdr_velodyne_aggregator_node ${PROJECT_NAME}_gencfg)

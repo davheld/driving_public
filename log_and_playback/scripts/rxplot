@@ -40,7 +40,7 @@ class MessageParser:
     float64[] values
     float64[4] values4
     float32 intensity
-    
+
 
     It should return
     [('float32', 'point/x'),
@@ -48,7 +48,7 @@ class MessageParser:
      ('float32', 'point/z'),
      ('float32', 'intensity')]
     '''
-    
+
     def __init__(self, msg_type):
         self.msg_desc = subprocess.Popen(['rosmsg', 'show', msg_type], stdout=subprocess.PIPE).communicate()[0].split('\n')
         self.nLines = len(self.msg_desc)
@@ -61,10 +61,10 @@ class MessageParser:
         line = self.msg_desc[self.line_i]
         block_indent_nw = nspaces(line)
         last_el = ''
-        
+
         while self.line_i < self.nLines:
             line = self.msg_desc[self.line_i]
-            
+
             if len(line)==0 or '=' in line:
                 self.line_i = self.line_i + 1
                 continue
@@ -94,7 +94,7 @@ class MessageParser:
                     last_el = field_name
                     self.fields.append((field_type, prefix+field_name))
                     self.line_i = self.line_i + 1
-        
+
 
 def getMsgFields(msg_type):
     '''Returns the message's fields as parsed by MessageParser.'''
@@ -105,7 +105,7 @@ def getMsgFields(msg_type):
 #print getMsgFields('nav_msgs/Odometry')
 #sys.exit(0)
 
-    
+
 # ========================================================================== #
 
 
@@ -130,7 +130,7 @@ for arg in args.bags_and_topics:
     else:
         topic_args.append(arg)
 
-        
+
 if len(topic_args)==0:
     print 'You need to provide at least one topic name'
     sys.exit(1)
@@ -165,7 +165,7 @@ if args.duration:
     end_time = start_time + args.duration
 
 
-    
+
 
 '''
 construct a database of topics to plot, and for each one, info such as which
@@ -188,7 +188,8 @@ each entry is an array of dictionaries with keys 'field_path', 'mult', 'plot'
 '''
 
 class FieldDescription:
-    def __init__(self, path, plot):
+    def __init__(self, topic, path, plot):
+        self.topic = topic
         self.path = path
         self.mult = 1
         self.plot = plot
@@ -217,12 +218,12 @@ for plot_idx, topic_arg in enumerate(topic_args):
             if topic_desc.startswith(t):
                 if len(topic_desc)==len(t):
                     for field in getMsgFields(all_topics[t]):
-                        addFieldDesc(FieldDescription(field[1].split('/'), plot_idx), t)
+                        addFieldDesc(FieldDescription(t, field[1].split('/'), plot_idx), t)
                 else:
                     field_path_decomposition = topic_desc[len(t):].strip('/').split('/')
                     field_path_stem = field_path_decomposition[-1]
                     for field_desc_str in field_path_stem.split(':'):
-                        field_desc = FieldDescription(field_path_decomposition[:-1], plot_idx)
+                        field_desc = FieldDescription(t, field_path_decomposition[:-1], plot_idx)
                         if '*' in field_desc_str:
                             f, m = field_desc_str.split('*')
                             field_desc.mult = float(m)
@@ -263,8 +264,11 @@ for bag in bags:
                 data_series[f.plot][topic_field] = data
             data[0].append(t.to_sec()-first_time)
             tmp_data = msg
-            for field in f.path:
-              tmp_data = tmp_data.__getattribute__(field)
+            try:
+                for field in f.path:
+                  tmp_data = tmp_data.__getattribute__(field)
+            except AttributeError as e:
+                sys.exit('Could not get %s//%s: %s' % (f.topic, f.name(), e))
             data[1].append(tmp_data * f.mult)
 
 

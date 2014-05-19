@@ -46,7 +46,7 @@ class BroadcasterNode : public localize::LocalizerBase
 public:
   BroadcasterNode()
   {
-    nh_.subscribe("/driving/LocalizePose", 100, &BroadcasterNode::localizePoseCallback, this);
+    sub_ = nh_.subscribe("/driving/LocalizePose", 100, &BroadcasterNode::localizePoseCallback, this);
   }
 
 private:

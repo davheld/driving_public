@@ -6,6 +6,7 @@ set(CMAKE_BUILD_TYPE RelWithDebInfo)
 find_package(catkin REQUIRED COMPONENTS 
   std_msgs roscpp nodelet dynamic_reconfigure 
   velodyne_pointcloud stdr_msgs stdr_lib bag_of_tricks
+  tf
 )
 find_package(PCL REQUIRED COMPONENTS common)
 

@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<package>
+  <name>track_tools</name>
+  <version>0.0.0</version>
+  <description>Library to support the classification package.</description>
+
+  <maintainer email="brice.rebsamen@gmail.com">Brice Rebsamen</maintainer>
+  <license>TODO</license>
+
+  <author email="teichman@cs.stanford.edu">Alex Teichman</author>
+  
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>roscpp</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>dgc_transform</build_depend>
+  <build_depend>libpcl-all-dev</build_depend>
+
+  <run_depend>roscpp</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>dgc_transform</run_depend>
+  <run_depend>libpcl-all</run_depend>
+</package>

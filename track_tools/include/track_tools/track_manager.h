@@ -183,6 +183,14 @@ bool cloudsEqual(const sensor_msgs::PointCloud& c1, const sensor_msgs::PointClou
 bool streamTrack(std::string track_manager_filename, const Track& tr);
 bool deserializePointCloudROS(std::istream& istrm, sensor_msgs::PointCloud* cloud);
 void serializePointCloudROS(const sensor_msgs::PointCloud& cloud, std::ostream& out);
+
+/** Converts the sensor_msgs::PointCloud (SMP) data to a PCL point cloud equivalent.
+  *
+  * Important note: Although the output PCL point cloud is typed with RGB data,
+  * it will actually contain laser intensity data, i.e. r = g = b = val, where
+  * val is taken from the first channel in the SMP. Besides, the SMP should
+  * contain one and only one channel. This is not a general purpose function!
+  */
 void smpToPCL(const sensor_msgs::PointCloud& smp, pcl::PointCloud<pcl::PointXYZRGB>* pcd);
 
 // -- Useful functions for testing.

@@ -1,3 +1,43 @@
+/********************************************************
+  Stanford Driving Software
+  Copyright (c) 2011 Stanford University
+  All rights reserved.
+
+  Redistribution and use in source and binary forms, with
+  or without modification, are permitted provided that the
+  following conditions are met:
+
+* Redistributions of source code must retain the above
+  copyright notice, this list of conditions and the
+  following disclaimer.
+* Redistributions in binary form must reproduce the above
+  copyright notice, this list of conditions and the
+  following disclaimer in the documentation and/or other
+  materials provided with the distribution.
+* The names of the contributors may not be used to endorse
+  or promote products derived from this software
+  without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+  CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
+  WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+  PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
+  OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
+  DAMAGE.
+ ********************************************************/
+
+#include <iostream>
+#include <fstream>
+
 #include <track_tools/track_manager.h>
 
 using namespace std;
@@ -137,7 +177,8 @@ bool TrackManager::operator==(const TrackManager& tm) {
 }
 
 double getTrackLength(const Track& tr) {
-  double z = tr.getMeanNumPoints() + tr.frames_[0]->cloud_->points.size() + tr.frames_[0]->robot_pose_.roll + tr.frames_[0]->robot_pose_.pitch + tr.frames_[0]->robot_pose_.yaw;
+  double z = tr.getMeanNumPoints() + tr.frames_[0]->cloud().points.size() +
+      tr.frames_[0]->robot_pose().roll + tr.frames_[0]->robot_pose().pitch + tr.frames_[0]->robot_pose().yaw;
   return (double) tr.frames_.size() + 1.0 / (1.0 + exp(-z / 10000.0)); // Break ties consistently with high probability.
 }
 
@@ -290,13 +331,13 @@ bool Track::deserialize(istream& istrm) {
 bool Track::seek(double timestamp, double max_time_difference, size_t* idx) {
   assert(idx);
   
-  if(timestamp < frames_.front()->timestamp_ || timestamp > frames_.back()->timestamp_)
+  if(timestamp < frames_.front()->timestamp() || timestamp > frames_.back()->timestamp())
     return false;
 
   double min_delta = FLT_MAX;
   size_t best_idx = 0;
   for(size_t i = 0; i < frames_.size(); ++i) {
-    //double delta = fabs(frames_[i]->timestamp_ - timestamp);
+    //double delta = fabs(frames_[i]->timestamp() - timestamp);
     double delta = fabs(frames_[i]->estimateAdjustedTimestamp() - timestamp);
     if(delta < min_delta) {
       min_delta = delta;
@@ -322,12 +363,12 @@ bool Track::interpolatedSeek(double timestamp, double max_time_difference, size_
   if(!success)
     return false;
 
-  if(timestamp < frames_[nearest]->timestamp_)
+  if(timestamp < frames_[nearest]->timestamp())
     *idx = nearest - 1;
   else
     *idx = nearest;
 
-  *interpolation = (timestamp - frames_[*idx]->timestamp_) / (frames_[*idx + 1]->timestamp_ - frames_[*idx]->timestamp_);
+  *interpolation = (timestamp - frames_[*idx]->timestamp()) / (frames_[*idx + 1]->timestamp() - frames_[*idx]->timestamp());
   
   return true;
 }
@@ -335,7 +376,7 @@ bool Track::interpolatedSeek(double timestamp, double max_time_difference, size_
 double Track::getMeanNumPoints() const {
   double total = 0;
   for(size_t i = 0; i < frames_.size(); ++i) {
-    total += frames_[i]->cloud_->points.size();
+    total += frames_[i]->cloud().points.size();
   }
   return total / (double)frames_.size();
 }
@@ -471,8 +512,23 @@ Frame::Frame(istream& istrm, dgc_transform::dgc_transform_t velodyne_offset) :
   smooth_to_velo_ = getSmoothToVeloTransform(velodyne_offset);
 }
 
+sensor_msgs::PointCloud& Frame::cloud()
+{
+  invalidate_cache();
+  return *cloud_;
+}
+
+void Frame::invalidate_cache()
+{
+  // invalidate the cached data:
+  centroid_.reset();
+  bounding_box_.reset();
+  spin_offset_ = -1;
+}
 
 bool Frame::deserialize(std::istream& istrm) {
+  invalidate_cache();
+
   string line;
   getline(istrm, line);
   if(line.compare("Frame") != 0) {
@@ -485,6 +541,7 @@ bool Frame::deserialize(std::istream& istrm) {
     cout << "Expected 'serialization_version_', got " << line << endl;
     return false;
   }
+
   istrm >> serialization_version_;
   if(serialization_version_ != FRAME_SERIALIZATION_VERSION) {
     cerr << "Frame serialization version is " << serialization_version_ << ", expected " << FRAME_SERIALIZATION_VERSION << ", aborting." << endl;
@@ -521,7 +578,8 @@ bool Frame::deserialize(std::istream& istrm) {
 }
 
 
-void Frame::serialize(std::ostream& out) const{
+void Frame::serialize(std::ostream& out) const
+{
   out << "Frame" << endl;
   out << "serialization_version_" << endl;
   out << FRAME_SERIALIZATION_VERSION << endl;
@@ -539,20 +597,9 @@ void Frame::serialize(std::ostream& out) const{
   serializePointCloudROS(*cloud_, out);
   out << endl;
 }
-//     out << "timestamp" << endl;
-//     out.write((char*)&timestamps_[i], sizeof(double));
-//     out << endl;
-//     assert(velodyne_centers_[i].size() == 3);
-//     out << "velo_center" << endl;
-//     out.write((char*)&velodyne_centers_[i][0], sizeof(float));
-//     out.write((char*)&velodyne_centers_[i][1], sizeof(float));
-//     out.write((char*)&velodyne_centers_[i][2], sizeof(float));
-//     out << endl;
-//     serializePointCloudROS(*clouds_[i], out);
-//     out << endl;
 
-
-bool Frame::getCloudInVeloCoords(Eigen::MatrixXd* eig) const {
+bool Frame::getCloudInVeloCoords(Eigen::MatrixXd* eig) const
+{
   if(cloud_->points.size() < 1)
     return false;
 
@@ -568,7 +615,8 @@ bool Frame::getCloudInVeloCoords(Eigen::MatrixXd* eig) const {
   return true;
 }
 
-Matrix4f Frame::getSmoothToVeloTransform(dgc_transform::dgc_transform_t velodyne_offset) const {
+Matrix4f Frame::getSmoothToVeloTransform(dgc_transform::dgc_transform_t velodyne_offset) const
+{
   assert(!isnan(-robot_pose_.x));
   Matrix4f eig_smooth_to_rotated_body = Matrix4f::Identity();
   
@@ -585,29 +633,6 @@ Matrix4f Frame::getSmoothToVeloTransform(dgc_transform::dgc_transform_t velodyne
   for(int r = 0; r < 4; ++r)
     for(int c = 0; c < 4; ++c)
       eig_rotated_body_to_velodyne(r, c) = inv[c][r]; // dgc uses T*pt, we're using pt*T.
-  //   cout << "dgc rotated_body_to_velo " << endl;
-  //   cout << eig_rotated_body_to_velodyne << endl;
-
-  //  Matrix4f eig_rotated_body_to_body = Matrix4f::Identity();
-  //   dgc_transform::dgc_transform_t transform;
-  //   dgc_transform::dgc_transform_t id;
-  //   dgc_transform::identity(id);
-  //   dgc_transform::rotate_rpy(transform, id,
-  // 		    -robot_pose_.roll,
-  // 		    -robot_pose_.pitch,
-  // 		    -robot_pose_.yaw);
-  
-  //   for(int r = 0; r < 4; ++r)
-  //     for(int c = 0; c < 4; ++c)
-  //       eig_rotated_body_to_body(r, c) = transform[c][r]; // dgc uses T*pt, we're using pt*T.
-
-  //   Matrix4f eig_body_to_velodyne = Matrix4f::Identity();
-  //   eig_body_to_velodyne(3, 0) = -velodyne_offset[0][3];
-  //   eig_body_to_velodyne(3, 1) = -velodyne_offset[1][3];
-  //   eig_body_to_velodyne(3, 2) = -velodyne_offset[2][3];
-  //   cout << "eig rotated_body_to_velo" << endl;
-  //   cout << eig_rotated_body_to_body * eig_body_to_velodyne << endl;
-  //   cin.ignore();
 
   Matrix4f smooth_to_velo = eig_smooth_to_rotated_body * eig_rotated_body_to_velodyne;
   if(isnan(smooth_to_velo(0, 0))) {
@@ -619,7 +644,8 @@ Matrix4f Frame::getSmoothToVeloTransform(dgc_transform::dgc_transform_t velodyne
   return smooth_to_velo; //eig_rotated_body_to_body * eig_body_to_velodyne;
 }
 
-void Frame::getVelodyneXYZ(dgc_transform::dgc_transform_t velodyne_offset, double* x, double* y, double* z) const {
+void Frame::getVelodyneXYZ(dgc_transform::dgc_transform_t velodyne_offset, double* x, double* y, double* z) const
+{
   // -- Get the velodyne center.
   dgc_transform::dgc_transform_t rotation;
   dgc_transform::dgc_transform_t id2;
@@ -642,12 +668,13 @@ void Frame::getVelodyneXYZ(dgc_transform::dgc_transform_t velodyne_offset, doubl
   *z = laser_z;
 }
 
-Vector3f Frame::getCentroid() {
+const Vector3d& Frame::getCentroid() const
+{
   if(centroid_)
     return *centroid_;
 
-  centroid_ = boost::shared_ptr<Vector3f>(new Vector3f());
-  *centroid_ = Vector3f::Zero();
+  centroid_ = boost::shared_ptr<Vector3d>(new Vector3d);
+  *centroid_ = Vector3d::Zero();
   for(size_t i = 0; i < cloud_->points.size(); ++i) {
     centroid_->coeffRef(0) += cloud_->points[i].x;
     centroid_->coeffRef(1) += cloud_->points[i].y;
@@ -659,12 +686,13 @@ Vector3f Frame::getCentroid() {
 }
 
 
-MatrixXf Frame::getBoundingBox() {
+const Eigen::MatrixXd &Frame::getBoundingBox() const
+{
   if(bounding_box_)
     return *bounding_box_;
 
-  bounding_box_ = boost::shared_ptr<MatrixXf>(new MatrixXf(2, 2));
-  MatrixXf& bb = *bounding_box_;
+  bounding_box_ = boost::shared_ptr<MatrixXd>(new MatrixXd(2, 2));
+  MatrixXd& bb = *bounding_box_;
   bb(0, 0) = FLT_MAX; // Small x.
   bb(1, 0) = FLT_MAX; // Small y.
   bb(0, 1) = -FLT_MAX; // Big x.
@@ -685,14 +713,16 @@ MatrixXf Frame::getBoundingBox() {
   return *bounding_box_;
 }
 
-double Frame::getDistance(dgc_transform::dgc_transform_t velodyne_offset) {
-  Vector3f centroid = getCentroid();
+double Frame::getDistance(dgc_transform::dgc_transform_t velodyne_offset) const
+{
+  Vector3d centroid = getCentroid();
   Vector3d velo;
   getVelodyneXYZ(velodyne_offset, &velo(0), &velo(1), &velo(2));
-  return (centroid.cast<double>() - velo).norm();
+  return (centroid - velo).norm();
 }
 
-double Frame::estimateSpinOffset() {
+double Frame::estimateSpinOffset() const
+{
   if(spin_offset_ != -1)
     return spin_offset_;
 
@@ -727,7 +757,8 @@ double Frame::estimateSpinOffset() {
   return spin_offset_;
 }
 
-double Frame::estimateAdjustedTimestamp() {
+double Frame::estimateAdjustedTimestamp() const
+{
   static const double spin_time = 0.1;
   const double adjusted_timestamp = timestamp_ + estimateSpinOffset() * spin_time;
   return adjusted_timestamp;
@@ -1002,6 +1033,16 @@ void smpToPCL(const sensor_msgs::PointCloud& smp, pcl::PointCloud<pcl::PointXYZR
     ROS_ASSERT(!isnan((*pcd)[i].y) && !isinf((*pcd)[i].y));
     ROS_ASSERT(!isnan((*pcd)[i].z) && !isinf((*pcd)[i].z));
   }
+}
+
+
+tf::StampedTransform get_smooth_transform(const Frame& frame)
+{
+  return tf::StampedTransform(
+        dgc_transform::as_tf(frame.robot_pose()),
+        ros::Time(frame.timestamp()),
+        "smooth",
+        "base_link");
 }
 
 

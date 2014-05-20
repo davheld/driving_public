@@ -154,7 +154,7 @@ int main(int argc, char **argv)
   ROS_ASSERT(track_nb<itmanager.tracks_.size());
 
   for( unsigned f=0; f<itmanager.tracks_[track_nb]->frames_.size(); ++f )
-    appendPoints( *(itmanager.tracks_[track_nb]->frames_[f]->cloud_) );
+    appendPoints( itmanager.tracks_[track_nb]->frames_[f]->cloud() );
 
   demean();
 

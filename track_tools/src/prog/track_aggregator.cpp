@@ -54,7 +54,7 @@ namespace bpo = boost::program_options;
 
 bool framecomp(const track_manager::Frame* f1, const track_manager::Frame* f2)
 {
-  return f1->timestamp_ < f2->timestamp_;
+  return f1->timestamp() < f2->timestamp();
 }
 
 int main(int argc, char **argv)
@@ -104,13 +104,13 @@ int main(int argc, char **argv)
     printf("progress: %d%%    \r", (int)progress);
 
     const track_manager::Frame* frame = frames[f];
-    if( newFrame && frame->timestamp_ == newFrame->timestamp_ ) {
-      const sensor_msgs::PointCloud &pcd = *(frame->cloud_);
+    if( newFrame && frame->timestamp() == newFrame->timestamp() ) {
+      const sensor_msgs::PointCloud &pcd = frame->cloud();
       BOOST_FOREACH(const geometry_msgs::Point32& p, pcd.points)
-        newFrame->cloud_->points.push_back(p);
-      for(unsigned i=0; i<newFrame->cloud_->channels.size(); ++i)
-        newFrame->cloud_->channels[i].values.insert(
-              newFrame->cloud_->channels[i].values.end(),
+        newFrame->cloud().points.push_back(p);
+      for(unsigned i=0; i<newFrame->cloud().channels.size(); ++i)
+        newFrame->cloud().channels[i].values.insert(
+              newFrame->cloud().channels[i].values.end(),
               pcd.channels[i].values.begin(),
               pcd.channels[i].values.end());
     }
@@ -121,7 +121,7 @@ int main(int argc, char **argv)
       }
       if( !newFrame ) {
         newFrame.reset( new track_manager::Frame(*frame) );
-        newFrame->cloud_.reset( new sensor_msgs::PointCloud(*(frame->cloud_)) ); //deep copy
+        newFrame->cloud() = frame->cloud(); //deep copy
       }
     }
   }

@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
       num_clouds[tr.label_] += tr.frames_.size();
       num_tracks[tr.label_]++;
       for(size_t k=0; k<tr.frames_.size(); ++k)
-        num_points[tr.label_] += tr.frames_[k]->cloud_->points.size();
+        num_points[tr.label_] += tr.frames_[k]->cloud().points.size();
     }
   }
 

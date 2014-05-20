@@ -38,8 +38,6 @@
 #ifndef __DGC_TRANSFORM__DGC_TRANSFORM__H__
 #define __DGC_TRANSFORM__DGC_TRANSFORM__H__
 
-#warning deprecated header: use tf instead!
-
 #include <tf/tf.h>
 
 
@@ -133,6 +131,9 @@ typedef struct
   double pitch;
   double yaw;
 } dgc_pose_t, *dgc_pose_p;
+
+
+tf::Transform as_tf(const dgc_pose_t & t);
 
 
 } //namespace dgc_transform

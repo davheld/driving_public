@@ -256,6 +256,18 @@ tf::Transform as_tf(const dgc_transform_t & t)
   return tr;
 }
 
+tf::Transform as_tf(const dgc_pose_t& pose)
+{
+  tf::Transform tr;
+
+  tr.setOrigin( tf::Vector3(pose.x, pose.y, pose.z) );
+  tr.setRotation( tf::createQuaternionFromRPY(pose.roll, pose.pitch, pose.yaw) );
+
+  return tr;
+}
+
+
+
 char* dgc_next_word(char *str)
 {
   char *mark = str;

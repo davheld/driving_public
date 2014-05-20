@@ -206,7 +206,7 @@ void toPCL(const sensor_msgs::PointCloud& pcd, pcl::PointCloud<pcl::PointXYZRGBA
     centroid /= pcd.points.size();
   }
   else if( frame_type == FT_BASE_LINK ) {
-    const dgc_transform::dgc_pose_t& robo_pose = tmanager.tracks_[trackid]->frames_[frameid]->robot_pose_;
+    const dgc_transform::dgc_pose_t& robo_pose = tmanager.tracks_[trackid]->frames_[frameid]->robot_pose();
     centroid.x() = robo_pose.x;
     centroid.y() = robo_pose.y;
     centroid.z() = robo_pose.z;
@@ -262,7 +262,7 @@ int main(int argc, char **argv)
     nav();
     if( refresh ) {
       const track_manager::Track& tr = *(tmanager.tracks_[trackid]);
-      const sensor_msgs::PointCloud& pcd = *(tr.frames_[frameid]->cloud_);
+      const sensor_msgs::PointCloud& pcd = tr.frames_[frameid]->cloud();
       if( true /*tr.label_=="car" && pcd.points.size()>500*/ ) {
         visualizer->removeAllPointClouds();
         toPCL(pcd, *pts);
@@ -271,7 +271,7 @@ int main(int argc, char **argv)
         std::cout <<"Track " <<trackid <<"/" <<tmanager.tracks_.size() <<", frame "
                  <<frameid <<"/" <<tr.frames_.size()
                 <<". label: " <<tr.label_
-               <<", timestamp=" <<std::setprecision(16) <<tr.frames_[frameid]->timestamp_
+               <<", timestamp=" <<std::setprecision(16) <<tr.frames_[frameid]->timestamp()
               <<"." <<std::endl;
       }
       else {

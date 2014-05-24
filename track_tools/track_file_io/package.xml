@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<package>
+  <name>track_file_io</name>
+  <version>0.0.0</version>
+  <description>Definition of the track file format and code to read and
+      write those files.
+  </description>
+
+  <maintainer email="brice.rebsamen@gmail.com">Brice Rebsamen</maintainer>
+  <license>TODO</license>
+
+  <author email="brice.rebsamen@gmail.com">Brice Rebsamen</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+
+  <build_depend>message_generation</build_depend>
+  <build_depend>geometry_msgs</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>rosbag_storage</build_depend>
+  <build_depend>rosconsole</build_depend>
+
+  <run_depend>message_runtime</run_depend>
+  <run_depend>geometry_msgs</run_depend>
+  <run_depend>sensor_msgs</run_depend>
+  <run_depend>rosbag_storage</run_depend>
+  <run_depend>rosconsole</run_depend>
+</package>

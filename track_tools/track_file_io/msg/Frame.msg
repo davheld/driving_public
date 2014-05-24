@@ -1,0 +1,3 @@
+time stamp
+sensor_msgs/PointCloud2 cloud
+geometry_msgs/Pose robot_pose

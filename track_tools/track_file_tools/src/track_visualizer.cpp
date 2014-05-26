@@ -36,9 +36,10 @@
  ********************************************************/
 
 #include <pcl/visualization/pcl_visualizer.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <track_file_io/track_file_io.h>
 
-/** This program loads a tm file (see track_tools/TrackManager) and displays
+/** This program loads a tm file (see track_file_io) and displays
   * the data in PCLVisualizer, track by track, frame by frame.
   *
   * The data can have color or not.
@@ -49,7 +50,7 @@
  */
 
 boost::shared_ptr<pcl::visualization::PCLVisualizer> visualizer;
-track_manager::TrackManager tmanager;
+track_file_io::Tracks tracks;
 
 int dTrack=0, dFrame=0;
 unsigned trackid=0, frameid=0;
@@ -141,7 +142,7 @@ void keyboardCallback(const pcl::visualization::KeyboardEvent& event, void* cook
 void nav()
 {
   if( dTrack>0 ) {
-    const unsigned newTrack = std::min((unsigned)tmanager.tracks_.size()-1, trackid+dTrack);
+    const unsigned newTrack = std::min((unsigned)tracks.tracks.size()-1, trackid+dTrack);
     if( newTrack>trackid ) {
       trackid = newTrack;
       frameid = 0;
@@ -157,11 +158,11 @@ void nav()
   dTrack = 0;
 
   if( dFrame>0 ) {
-    if( frameid+dFrame < tmanager.tracks_[trackid]->frames_.size() ) {
+    if( frameid+dFrame < tracks.tracks[trackid].frames.size() ) {
       frameid += dFrame;
     }
-    else if( trackid == tmanager.tracks_.size()-1 ) {
-      frameid = tmanager.tracks_[trackid]->frames_.size() - 1;
+    else if( trackid == tracks.tracks.size()-1 ) {
+      frameid = tracks.tracks[trackid].frames.size() - 1;
     }
     else {
       ++trackid;
@@ -177,66 +178,12 @@ void nav()
     }
     else {
       --trackid;
-      frameid = tmanager.tracks_[trackid]->frames_.size() - 1;
+      frameid = tracks.tracks[trackid].frames.size() - 1;
     }
   }
   dFrame = 0;
 }
 
-void toPCL(const sensor_msgs::PointCloud& pcd, pcl::PointCloud<pcl::PointXYZRGBA>& pts)
-{
-  pts.points.resize( pcd.points.size() );
-
-  const std::vector<float>* colors = 0;
-  const std::vector<float>* intensities = 0;
-  for(unsigned i=0; i<pcd.channels.size(); ++i) {
-    if( pcd.channels[i].name=="rgb" )
-      colors = &(pcd.channels[i].values);
-    else if( pcd.channels[i].name=="" || pcd.channels[i].name=="intensity" )
-      intensities = &(pcd.channels[i].values);
-  }
-
-  Eigen::Vector3d centroid = Eigen::Vector3d::Zero();
-  if( frame_type == FT_DEMEAN ) {
-    BOOST_FOREACH(const geometry_msgs::Point32& p, pcd.points) {
-      centroid.x() += p.x;
-      centroid.y() += p.y;
-      centroid.z() += p.z;
-    }
-    centroid /= pcd.points.size();
-  }
-  else if( frame_type == FT_BASE_LINK ) {
-    const dgc_transform::dgc_pose_t& robo_pose = tmanager.tracks_[trackid]->frames_[frameid]->robot_pose();
-    centroid.x() = robo_pose.x;
-    centroid.y() = robo_pose.y;
-    centroid.z() = robo_pose.z;
-  }
-  else
-    ROS_BREAK();
-
-  for(unsigned i=0; i<pcd.points.size(); ++i) {
-    pts.points[i].x = pcd.points[i].x - centroid.x();
-    pts.points[i].y = pcd.points[i].y - centroid.y();
-    pts.points[i].z = pcd.points[i].z - centroid.z();
-    pts.points[i].a = 255;
-    if( color_type==CT_COLOR && colors ) {
-      pts.points[i].rgb = colors->at(i);
-      //std::cout <<"color: " <<(int)pts.points[i].r <<", " <<(int)pts.points[i].g <<", " <<(int)pts.points[i].b <<std::endl;
-    }
-    else if( color_type!=CT_NONE && intensities ) {
-      const unsigned char I = intensities->at(i);
-      pts.points[i].r = I;
-      pts.points[i].g = I;
-      pts.points[i].b = I;
-    }
-    else {
-      pts.points[i].r = 255;
-      pts.points[i].g = 255;
-      pts.points[i].b = 255;
-    }
-  }
-
-}
 
 int main(int argc, char **argv)
 {
@@ -244,11 +191,9 @@ int main(int argc, char **argv)
     std::cerr <<"Track file required." <<std::endl;
     return 1;
   }
-  if( !tmanager.load(argv[1]) ) {
-    std::cerr <<"Could not load " <<argv[1] <<std::endl;
-    return 1;
-  }
-  if( tmanager.tracks_.empty() ) {
+  track_file_io::load(argv[1], tracks);
+
+  if( tracks.tracks.empty() ) {
     std::cerr <<"No tracks in " <<argv[1] <<std::endl;
     return 1;
   }
@@ -261,17 +206,42 @@ int main(int argc, char **argv)
   {
     nav();
     if( refresh ) {
-      const track_manager::Track& tr = *(tmanager.tracks_[trackid]);
-      const sensor_msgs::PointCloud& pcd = tr.frames_[frameid]->cloud();
+      const track_file_io::Track& tr = tracks.tracks[trackid];
+      const sensor_msgs::PointCloud2& pcd = tr.frames[frameid].cloud;
       if( true /*tr.label_=="car" && pcd.points.size()>500*/ ) {
         visualizer->removeAllPointClouds();
-        toPCL(pcd, *pts);
-        visualizer->addPointCloud(pts);
+
+        bool has_color = false;
+        bool has_intensity = false;
+        for(unsigned i=0; i<pcd.fields.size(); ++i) {
+          if( pcd.fields[i].name=="rgb" )
+            has_color = true;
+          else if( pcd.fields[i].name=="intensity" )
+            has_intensity = true;
+        }
+
+        if( has_color ) {
+          pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+          pcl::fromROSMsg(pcd, *cloud);
+          visualizer->addPointCloud(cloud);
+        }
+        else if( has_intensity ) {
+          pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
+          pcl::fromROSMsg(pcd, *cloud);
+          pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> intensity_distribution("intensity");
+          visualizer->addPointCloud(cloud, intensity_distribution);
+        }
+        else {
+          pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+          pcl::fromROSMsg(pcd, *cloud);
+          visualizer->addPointCloud(cloud);
+        }
+
         refresh = false;
-        std::cout <<"Track " <<trackid <<"/" <<tmanager.tracks_.size() <<", frame "
-                 <<frameid <<"/" <<tr.frames_.size()
-                <<". label: " <<tr.label_
-               <<", timestamp=" <<std::setprecision(16) <<tr.frames_[frameid]->timestamp()
+        std::cout <<"Track " <<trackid <<"/" <<tracks.tracks.size() <<", frame "
+                 <<frameid <<"/" <<tr.frames.size()
+                <<". label: " <<tr.label
+               <<", timestamp=" <<std::setprecision(16) <<tr.frames[frameid].stamp.toSec()
               <<"." <<std::endl;
       }
       else {

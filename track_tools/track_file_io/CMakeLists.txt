@@ -27,8 +27,4 @@ add_library(${PROJECT_NAME}
   src/track_file_io.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
-# Make sure track_msgs messages are generated first
-if(catkin_EXPORTED_TARGETS)
-  add_dependencies(${PROJECT_NAME} ${catkin_EXPORTED_TARGETS})
-endif()
-
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_generate_messages_cpp)

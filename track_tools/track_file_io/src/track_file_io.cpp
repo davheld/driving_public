@@ -45,15 +45,26 @@ static const std::string track_topic = "/tracks";
 static const std::string vel_pose_topic = "/velpose";
 
 
-TrackFileWriter::TrackFileWriter(const std::string& filename,
-                const geometry_msgs::Pose& velodyne_pose)
+TrackFileWriter::TrackFileWriter(const std::string& filename)
   : bag_(filename, rosbag::bagmode::Write)
+  , velodyne_pose_set_(false)
+  , velodyne_pose_saved_(false)
 {
-  bag_.write(vel_pose_topic, ros::Time(0), velodyne_pose);
+}
+
+void TrackFileWriter::setVelodynePose(const geometry_msgs::Pose &velodyne_pose)
+{
+  velodyne_pose_ = velodyne_pose;
+  velodyne_pose_set_ = true;
 }
 
 void TrackFileWriter::write(const track_file_io::Track& track)
 {
+  ROS_ASSERT( velodyne_pose_set_ );
+  if( !velodyne_pose_saved_ ) {
+    bag_.write(vel_pose_topic, track.frames.front().stamp, velodyne_pose_);
+    velodyne_pose_saved_ = true;
+  }
   bag_.write(track_topic, track.frames.front().stamp, track);
 }
 
@@ -82,9 +93,9 @@ bool TrackFileReader::read(track_file_io::Track &track)
   if( track_it_==tracks_view_.end() )
     return false;
   track_file_io::Track::ConstPtr t = track_it_->instantiate<track_file_io::Track>();
-  if( !t )
-    return false;
+  ROS_ASSERT(t);
   track = *t;
+  ++track_it_;
   return true;
 }
 
@@ -96,7 +107,8 @@ namespace track_file_io
 void save(const std::string& filename,
           const track_file_io::Tracks& tracks)
 {
-  TrackFileWriter writer(filename, tracks.velodyne_pose);
+  TrackFileWriter writer(filename);
+  writer.setVelodynePose(tracks.velodyne_pose);
   BOOST_FOREACH(const track_file_io::Track& track, tracks.tracks) {
     writer.write(track);
   }

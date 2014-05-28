@@ -48,9 +48,13 @@
 class TrackFileWriter
 {
   rosbag::Bag bag_;
+  bool velodyne_pose_set_, velodyne_pose_saved_;
+  geometry_msgs::Pose velodyne_pose_;
 
 public:
-  TrackFileWriter(const std::string& filename, const geometry_msgs::Pose& velodyne_pose);
+  TrackFileWriter(const std::string& filename);
+  void setVelodynePose(const geometry_msgs::Pose& velodyne_pose);
+  bool isVelodynePoseSet() const { return velodyne_pose_set_; }
   void write(const track_file_io::Track&);
 };
 

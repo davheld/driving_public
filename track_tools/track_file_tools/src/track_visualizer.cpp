@@ -184,6 +184,33 @@ void nav()
   dFrame = 0;
 }
 
+template <class PointT>
+void center_point_cloud(pcl::PointCloud<PointT>& pcd, const geometry_msgs::Pose& robot_pose)
+{
+  Eigen::Vector3d centroid = Eigen::Vector3d::Zero();
+  if( frame_type == FT_DEMEAN ) {
+    BOOST_FOREACH(const PointT& p, pcd.points) {
+      centroid.x() += p.x;
+      centroid.y() += p.y;
+      centroid.z() += p.z;
+    }
+    centroid /= pcd.points.size();
+  }
+  else if( frame_type == FT_BASE_LINK ) {
+    centroid.x() = robot_pose.position.x;
+    centroid.y() = robot_pose.position.y;
+    centroid.z() = robot_pose.position.z;
+  }
+  else
+    ROS_BREAK();
+
+  BOOST_FOREACH(PointT& p, pcd.points) {
+    p.x -= centroid.x();
+    p.y -= centroid.y();
+    p.z -= centroid.z();
+  }
+}
+
 
 int main(int argc, char **argv)
 {
@@ -200,7 +227,6 @@ int main(int argc, char **argv)
 
   visualizer.reset( new pcl::visualization::PCLVisualizer("tracks visualizer") );
   visualizer->registerKeyboardCallback(&keyboardCallback);
-  pcl::PointCloud<pcl::PointXYZRGBA>::Ptr pts = boost::make_shared< pcl::PointCloud<pcl::PointXYZRGBA> >();
 
   while( ! visualizer->wasStopped() )
   {
@@ -220,20 +246,32 @@ int main(int argc, char **argv)
             has_intensity = true;
         }
 
-        if( has_color ) {
+        if( has_color && color_type==CT_COLOR ) {
           pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
           pcl::fromROSMsg(pcd, *cloud);
+          center_point_cloud(*cloud, tr.frames[frameid].robot_pose);
           visualizer->addPointCloud(cloud);
         }
-        else if( has_intensity ) {
+        else if( has_intensity && color_type==CT_INTENSITY ) {
           pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
           pcl::fromROSMsg(pcd, *cloud);
-          pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZI> intensity_distribution("intensity");
-          visualizer->addPointCloud(cloud, intensity_distribution);
+          pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgbcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+          rgbcloud->resize(cloud->size());
+          for( unsigned i=0; i<cloud->size(); ++i) {
+            const pcl::PointXYZI& ipt = (*cloud)[i];
+            pcl::PointXYZRGB& rgbpt = (*rgbcloud)[i];
+            rgbpt.x = ipt.x;
+            rgbpt.y = ipt.y;
+            rgbpt.z = ipt.z;
+            rgbpt.r = rgbpt.g = rgbpt.b = ((float)ipt.intensity/256*(256-50)) + 50;
+          }
+          center_point_cloud(*rgbcloud, tr.frames[frameid].robot_pose);
+          visualizer->addPointCloud(rgbcloud);
         }
         else {
           pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
           pcl::fromROSMsg(pcd, *cloud);
+          center_point_cloud(*cloud, tr.frames[frameid].robot_pose);
           visualizer->addPointCloud(cloud);
         }
 

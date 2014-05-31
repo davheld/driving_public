@@ -4,6 +4,8 @@ set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 find_package(catkin REQUIRED COMPONENTS message_generation geometry_msgs sensor_msgs rosbag_storage rosconsole)
 
+catkin_python_setup()
+
 add_message_files(
   DIRECTORY msg
   FILES

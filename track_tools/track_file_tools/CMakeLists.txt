@@ -21,27 +21,27 @@ add_library(${PROJECT_NAME}
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
-add_executable(track_file_tools_track_stats src/track_stats.cpp)
-target_link_libraries(track_file_tools_track_stats ${PROJECT_NAME} ${PCL_LIBRARIES})
-set_target_properties(track_file_tools_track_stats
-                      PROPERTIES OUTPUT_NAME track_stats
+add_executable(track_file_tools_stats src/stats.cpp)
+target_link_libraries(track_file_tools_stats ${PROJECT_NAME} ${PCL_LIBRARIES})
+set_target_properties(track_file_tools_stats
+                      PROPERTIES OUTPUT_NAME stats
                       PREFIX "")
 
 include_directories(${VTK_INCLUDE_DIRS})
-add_executable(track_file_tools_track_visualizer src/track_visualizer.cpp)
-target_link_libraries(track_file_tools_track_visualizer ${PROJECT_NAME} ${PCL_LIBRARIES} ${PCL_VISUALIZATION_LIBRARIES} ${VTK_LIBRARIES})
-set_target_properties(track_file_tools_track_visualizer
-                      PROPERTIES OUTPUT_NAME track_visualizer
+add_executable(track_file_tools_visualizer src/visualizer.cpp)
+target_link_libraries(track_file_tools_visualizer ${PROJECT_NAME} ${PCL_LIBRARIES} ${PCL_VISUALIZATION_LIBRARIES} ${VTK_LIBRARIES})
+set_target_properties(track_file_tools_visualizer
+                      PROPERTIES OUTPUT_NAME visualizer
                       PREFIX "")
 
-add_executable(track_file_tools_track_aggregator src/track_aggregator.cpp)
-target_link_libraries(track_file_tools_track_aggregator ${PROJECT_NAME} ${PCL_LIBRARIES} ${Boost_LIBRARIES})
-set_target_properties(track_file_tools_track_aggregator
-                      PROPERTIES OUTPUT_NAME track_aggregator
+add_executable(track_file_tools_aggregator src/aggregator.cpp)
+target_link_libraries(track_file_tools_aggregator ${PROJECT_NAME} ${PCL_LIBRARIES} ${Boost_LIBRARIES})
+set_target_properties(track_file_tools_aggregator
+                      PROPERTIES OUTPUT_NAME aggregator
                       PREFIX "")
 
-add_executable(track_file_tools_track_cumulator src/track_cumulator.cpp)
-target_link_libraries(track_file_tools_track_cumulator ${PROJECT_NAME} ${PCL_LIBRARIES} ${Boost_LIBRARIES})
-set_target_properties(track_file_tools_track_cumulator
-                      PROPERTIES OUTPUT_NAME track_cumulator
+add_executable(track_file_tools_cumulator src/cumulator.cpp)
+target_link_libraries(track_file_tools_cumulator ${PROJECT_NAME} ${PCL_LIBRARIES} ${Boost_LIBRARIES})
+set_target_properties(track_file_tools_cumulator
+                      PROPERTIES OUTPUT_NAME cumulator
                       PREFIX "")

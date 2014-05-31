@@ -36,11 +36,11 @@
  ********************************************************/
 
 
-/** This program takes a tm file as input and
+/** This program takes a trk file as input and
   * aggregates all the tracks in one single track with a large point cloud.
   *
-  * This is basically abusing the tm format, but it allows to get a larger
-  * picture of what's in the tm file when viewing with track_visualizer.
+  * This is basically abusing the trk format, but it allows to get a larger
+  * picture of what's in the trk file when viewing with the track visualizer.
   */
 
 #include <vector>
@@ -74,19 +74,19 @@ void createGroupFrame(track_file_io::Frame& frame,
 
 int main(int argc, char **argv)
 {
-  std::string input_tm_fn, output_tm_fn;
+  std::string input_trk_fn, output_trk_fn;
   bpo::options_description opts;
   opts.add_options()
     ("help,h", "produces this help message")
-    ("input,i", bpo::value<std::string>(&input_tm_fn)->required(), "input tm file")
-    ("output,o", bpo::value<std::string>(&output_tm_fn)->required(), "output tm file")
+    ("input,i", bpo::value<std::string>(&input_trk_fn)->required(), "input trk file")
+    ("output,o", bpo::value<std::string>(&output_trk_fn)->required(), "output trk file")
     ;
   bpo::positional_options_description pd;
   pd.add("input", 1).add("output", 1);
   bpo::variables_map vm;
   bpo::store(bpo::command_line_parser(argc, argv).options(opts).positional(pd).run(), vm);
   if( vm.count("help") ) {
-    std::cout << "track_aggregator: takes a tm track file, aggregates all tracks in one, and save to a new tm file." << std::endl;
+    std::cout << "track_aggregator: takes a trk track file, aggregates all tracks in one, and save to a new trk file." << std::endl;
     std::cout << std::endl;
     std::cout << opts << std::endl;
     return 0;
@@ -94,7 +94,7 @@ int main(int argc, char **argv)
   bpo::notify(vm);
 
   track_file_io::Tracks itf;
-  track_file_io::load(input_tm_fn, itf);
+  track_file_io::load(input_trk_fn, itf);
 
   // Get all the frames
   std::vector<const track_file_io::Frame*> frames;
@@ -132,6 +132,6 @@ int main(int argc, char **argv)
     createGroupFrame(tr.frames[fg], frame_groups[fg].first, frame_groups[fg].second);
   }
 
-  track_file_io::save(output_tm_fn, otf);
+  track_file_io::save(output_trk_fn, otf);
   return 0;
 }

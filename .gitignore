@@ -1,0 +1,6 @@
+*.orig
+*~
+.DS_Store
+*.kate-swp
+*.td
+*.pyc

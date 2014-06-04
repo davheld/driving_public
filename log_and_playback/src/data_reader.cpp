@@ -177,12 +177,14 @@ void BagTFListener::addStaticTransform(const tf::StampedTransform & t)
 void SpinReader::addOptions(boost::program_options::options_description& opts_desc)
 {
   opts_desc.add_options()
-    ("start,s", bpo::value<double>()->default_value(0), "start SEC seconds into the bag files")
-    ("nocal", "do not load any calibration file (i.e. use the default config).")
-    ("cal", bpo::value<std::string>(), "velodyne calibration file")
-    ("vtfm", bpo::value<std::string>(), "velodyne TFM file")
-    ("logs", bpo::value< std::vector<std::string> >()->required(), "log files to load (bags or dgc logs)")
-    ;
+      ("start,s", bpo::value<double>()->default_value(0), "start SEC seconds into the bag files")
+      ("nocal", "do not load any calibration file (i.e. use the default config).")
+      ("cal", bpo::value<std::string>(), "velodyne calibration file")
+      ("noical", "do not load any intensity calibration file (i.e. use the default config).")
+      ("ical", bpo::value<std::string>(), "velodyne intensity calibration file")
+      ("vtfm", bpo::value<std::string>(), "velodyne TFM file")
+      ("logs", bpo::value< std::vector<std::string> >()->required(), "log files to load (bags or dgc logs)")
+      ;
 }
 
 void SpinReader::addOptions(boost::program_options::positional_options_description& pos_opts_desc)
@@ -309,16 +311,25 @@ bool SpinReader::nextSpin()
 
 void SpinReader::loadCalibrationFromProgramOptions(const bpo::variables_map & vm)
 {
-  if( vm.count("nocal") )
-    return;
+  if( ! vm.count("nocal") ) {
+    std::string calibration_file;
+    if( vm.count("cal") )
+      calibration_file = vm["cal"].as<std::string>();
+    else if( ! ros::param::get("/driving/velodyne/cal_file", calibration_file) )
+      BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
+                              "You must provide a configuration file, either on the command line, or as a rosparam."));
+    config_->readCalibration(calibration_file);
+  }
 
-  std::string calibration_file;
-  if( vm.count("cal") )
-    calibration_file = vm["cal"].as<std::string>();
-  else if( ! ros::param::get("/driving/velodyne/cal_file", calibration_file) )
-    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
-                            "You must provide a configuration file, either on the command line, or as a rosparam."));
-  config_->readCalibration(calibration_file);
+  if( ! vm.count("noical") ) {
+    std::string intensity_file;
+    if( vm.count("ical") )
+      intensity_file = vm["ical"].as<std::string>();
+    else if( ! ros::param::get("/driving/velodyne/int_file", intensity_file) )
+      BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
+                              "You must provide an intensity configuration file, either on the command line, or as a rosparam."));
+    config_->readIntensity(intensity_file);
+  }
 }
 
 void SpinReader::loadTFMFromProgramOptions(const bpo::variables_map & vm)

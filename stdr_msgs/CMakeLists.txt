@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(stdr_msgs)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
-find_package(catkin REQUIRED COMPONENTS message_generation std_msgs geometry_msgs sensor_msgs)
+find_package(catkin REQUIRED COMPONENTS message_generation std_msgs geometry_msgs sensor_msgs nav_msgs)
 
 add_message_files(
   DIRECTORY msg
@@ -47,7 +47,7 @@ add_message_files(
   VelStat.msg
 )
 
-generate_messages(DEPENDENCIES std_msgs geometry_msgs sensor_msgs)
+generate_messages(DEPENDENCIES std_msgs geometry_msgs sensor_msgs nav_msgs)
 
 catkin_package(CATKIN_DEPENDS message_runtime std_msgs geometry_msgs sensor_msgs)
 

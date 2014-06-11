@@ -47,6 +47,12 @@ add_message_files(
   VelStat.msg
 )
 
+add_service_files(
+  DIRECTORY srv
+  FILES
+  IgnoreROWVehicle.srv
+)
+
 generate_messages(DEPENDENCIES std_msgs geometry_msgs sensor_msgs nav_msgs)
 
 catkin_package(CATKIN_DEPENDS message_runtime std_msgs geometry_msgs sensor_msgs)

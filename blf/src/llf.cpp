@@ -121,7 +121,7 @@ LLFWriter::LLFWriter(const std::string &filename)
 {
   blf_.open(filename.c_str(), "w", false);
 
-  const std::string black_img_fn = stdr::roslib::find_file("ladybug_playback", "black.jpg");
+  const std::string black_img_fn = stdr::roslib::find_file("blf", "black.jpg");
   ROS_ASSERT(!black_img_fn.empty());
   std::ifstream black_img_f(black_img_fn.c_str());
 

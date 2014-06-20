@@ -29,4 +29,4 @@ add_library(${PROJECT_NAME}
   src/track_file_io.cpp
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
-add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_generate_messages_cpp)
+add_dependencies(${PROJECT_NAME} ${PROJECT_NAME}_gencpp)

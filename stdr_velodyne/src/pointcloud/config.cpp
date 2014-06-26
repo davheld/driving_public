@@ -185,6 +185,18 @@ void Configuration::recompute()
     beam_order_[i] = beam_angles[i].idx;
     inv_beam_order_[beam_angles[i].idx] = i;
   }
+
+  v_angle_max_ = beam_angles[0].angle;
+  v_angle_min_ = beam_angles[NUM_LASERS-1].angle;
+  v_angle_mult_ = static_cast<double>(V_ANGLE_TO_BEAM_NB_RES_N) / (v_angle_max_-v_angle_min_);
+  for(unsigned i=0, j=0; i<V_ANGLE_TO_BEAM_NB_RES_N; ++i) {
+    const double a = i / v_angle_mult_;
+    if( j+1>=NUM_LASERS ||
+        fabs(angles::shortest_angular_distance(a,beam_angles[j].angle)) >
+        fabs(angles::shortest_angular_distance(a,beam_angles[j+1].angle)) )
+      ++j;
+    v_angle_to_beam_number_table_[i] = j;
+  }
 }
 
 #define MAX_LINE_LENGTH    512
@@ -280,6 +292,14 @@ void Configuration::readCalibration(const std::string& filename)
   fclose(iop);
 
   recompute();
+}
+
+uint8_t Configuration::v_angle_to_beam_number(double v_angle) const
+{
+  int n = (v_angle_max_ - v_angle) * v_angle_mult_;
+  if( n <= 0 ) n = 0;
+  if( n >= V_ANGLE_TO_BEAM_NB_RES_N ) n = V_ANGLE_TO_BEAM_NB_RES_N - 1;
+  return v_angle_to_beam_number_table_[n];
 }
 
 void Configuration::printCalibrationData() const

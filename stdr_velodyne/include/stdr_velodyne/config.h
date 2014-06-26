@@ -158,21 +158,29 @@ public:
   /// Given a beam index (as in the Scan message), returns the corresponding beam number (0 is top most).
   inline int getInvBeamOrder(unsigned i) const { return inv_beam_order_[i]; }
 
+  /// Returns the ring config for the beam indexed by @param i
   inline const RingConfig & getRingConfig(unsigned i) const { return ring_config_[i]; }
 
-  /// Returns the true intensity corresponding to the raw intensity returned by beam indexed by i.
+  /// Returns the true intensity corresponding to the raw intensity returned by beam indexed by @param i.
   inline unsigned correctIntensity(unsigned i, unsigned raw_val) const { return intensity_map_[inv_beam_order_[i]][raw_val]; }
+
+  /// Returns the beam number closest to the given v_angle
+  uint8_t v_angle_to_beam_number(double v_angle) const;
 
 private:
   /// The static configuration instance (see getStaticConfigurationInstance())
   static Ptr static_configuration;
 
-  unsigned        spin_start_;
+  unsigned        spin_start_; ///< encoder value for the begining of the spin
   double          range_multiplier_;
-  RingConfig      ring_config_[NUM_LASERS];
-  uint8_t         beam_order_[NUM_LASERS];
-  uint8_t         inv_beam_order_[NUM_LASERS];
-  uint8_t         intensity_map_[NUM_LASERS][256];
+  RingConfig      ring_config_[NUM_LASERS]; //organized by beam index
+  uint8_t         beam_order_[NUM_LASERS]; //organized by beam number
+  uint8_t         inv_beam_order_[NUM_LASERS]; //organized by beam index
+  uint8_t         intensity_map_[NUM_LASERS][256]; //organized by beam number
+
+  static const unsigned V_ANGLE_TO_BEAM_NB_RES_N = 512;
+  uint8_t v_angle_to_beam_number_table_[V_ANGLE_TO_BEAM_NB_RES_N];
+  double v_angle_min_, v_angle_max_, v_angle_mult_;
 
   void recompute();
 };

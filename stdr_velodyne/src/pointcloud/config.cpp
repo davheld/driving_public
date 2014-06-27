@@ -115,12 +115,28 @@ void RingConfig::project(uint16_t range, PointType *p) const
   else {
     p->distance = dist + range_offset_;
     const double xyDistance = p->distance * vert_angle_.cos();
-    // profiler says that too much time is spend retrieving e_angle.cos and e_angle.sin
+    // profiler says that too much time is spent retrieving e_angle.cos and e_angle.sin
     p->x = xyDistance * e_angle.cos() - h_offset_ * e_angle.sin();
     p->y = xyDistance * e_angle.sin() + h_offset_ * e_angle.cos();
     p->z = xyDistance / vert_angle_.cos() * vert_angle_.sin() + v_offset_;
   }
 }
+
+void RingConfig::origin(uint16_t e, double *x, double *y, double *z) const
+{
+  const AngleVal & e_angle = enc_rot_angle_[e];
+  const double xyDistance = range_offset_ * vert_angle_.cos();
+  *x = xyDistance * e_angle.cos() - h_offset_ * e_angle.sin();
+  *y = xyDistance * e_angle.sin() + h_offset_ * e_angle.cos();
+  *z = xyDistance / vert_angle_.cos() * vert_angle_.sin() + v_offset_;
+}
+
+uint16_t RingConfig::h_angle_to_encoder(double h_angle) const
+{
+  static const double rad2enc = NUM_TICKS / (M_PI * 2);
+  return (rot_angle_ - h_angle) * rad2enc;
+}
+
 
 
 
@@ -165,8 +181,9 @@ static int beamCompare(const void *a, const void *b)
 
 void Configuration::recompute()
 {
-  static const double laser_offset_yaw = 0.0;
   beam_angle_t beam_angles[NUM_LASERS];
+
+  static const double enc2rad = 2*M_PI/NUM_TICKS;
 
   for (unsigned i = 0; i < NUM_LASERS; i++) {
     RingConfig & rc = ring_config_[i];
@@ -174,10 +191,8 @@ void Configuration::recompute()
     beam_angles[i].angle = rc.vert_angle_.getRads();
     beam_angles[i].idx = i;
 
-    for (unsigned j = 0; j < NUM_TICKS; j++) {
-      const double aj = (double) j / NUM_TICKS * 2.0 * M_PI;
-      rc.enc_rot_angle_[j].fromRads(laser_offset_yaw - aj + rc.rot_angle_);
-    }
+    for (unsigned j = 0; j < NUM_TICKS; j++)
+      rc.enc_rot_angle_[j].fromRads(rc.rot_angle_ - enc2rad*j);
   }
 
   qsort(beam_angles, NUM_LASERS, sizeof(beam_angle_t), beamCompare);

@@ -112,6 +112,12 @@ struct RingConfig
 
   /// Gets the (x,y,z) coordinates from the polar coordinates
   void project(uint16_t range, PointType *p) const;
+
+  /// Gets the origin of that beam for the encoder value
+  void origin(uint16_t encoder, double *x, double *y, double *z) const;
+
+  /// Returns the encoder value corresponding to a horizontal angle
+  uint16_t h_angle_to_encoder(double h_angle) const;
 };
 
 

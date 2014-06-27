@@ -45,9 +45,7 @@
 
 #include <angles/angles.h>
 #include <stdr_velodyne/config.h>
-#include "defaultcal.h"
-
-
+#include <stdr_lib/rosparam_helpers.h>
 
 namespace stdr_velodyne {
 
@@ -55,21 +53,22 @@ namespace stdr_velodyne {
 unsigned getSpinStart()
 {
   static boost::mutex get_spin_start_mutex_;
-  static int get_spin_start_value_ = -1;
+  static unsigned get_spin_start_value_;
+  static bool first = true;
 
   boost::unique_lock<boost::mutex> lock(get_spin_start_mutex_);
 
-  if( get_spin_start_value_ == -1 )
+  if(first)
   {
+    ros::NodeHandle nh("/driving/velodyne");
     int spin_start;
-    if( ! ros::param::get("/driving/velodyne/spin_start", spin_start) ) {
-      spin_start = stdr_velodyne::NUM_TICKS / 2;
-      ROS_WARN("Could not get a value for param /driving/velodyne/spin_start. Using default value of %d", spin_start);
-    }
-    ROS_ASSERT_MSG(spin_start>=0 && spin_start<stdr_velodyne::NUM_TICKS, "Invalid value for rosparam /driving/velodyne/spin_start");
+    GET_ROS_PARAM_WARN(nh, "spin_start", spin_start, stdr_velodyne::NUM_TICKS / 2);
+    ROS_ASSERT_MSG(spin_start>=0 && spin_start<stdr_velodyne::NUM_TICKS,
+                   "Invalid value for rosparam /driving/velodyne/spin_start");
     get_spin_start_value_ = spin_start;
+    first = false;
   }
-  return (unsigned) get_spin_start_value_;
+  return get_spin_start_value_;
 }
 
 
@@ -150,18 +149,11 @@ Configuration::Ptr Configuration::getStaticConfigurationInstance()
 }
 
 Configuration::Configuration()
+  : valid_(false)
 {
-  range_multiplier_ = 1.0;
-  for (unsigned i = 0; i < NUM_LASERS; i++) {
-    ring_config_[i].rot_angle_ = angles::from_degrees(DEFAULT_VELO_ROT_ANGLE[i]);
-    ring_config_[i].vert_angle_.fromDegrees(DEFAULT_VELO_VERT_ANGLE[i]);
-    ring_config_[i].laser_enabled_ = true;
-
+  for (unsigned i = 0; i < NUM_LASERS; i++)
     for (unsigned j = 0; j < 256; j++)
       intensity_map_[i][j] = j;
-  }
-
-  recompute();
 }
 
 struct beam_angle_t
@@ -197,8 +189,8 @@ void Configuration::recompute()
 
   qsort(beam_angles, NUM_LASERS, sizeof(beam_angle_t), beamCompare);
   for (unsigned i = 0; i < NUM_LASERS; i++) {
-    beam_order_[i] = beam_angles[i].idx;
-    inv_beam_order_[beam_angles[i].idx] = i;
+    hardware_indexes_[i] = beam_angles[i].idx;
+    beam_numbers_[beam_angles[i].idx] = i;
   }
 
   v_angle_max_ = beam_angles[0].angle;
@@ -222,7 +214,7 @@ void Configuration::readIntensity(const std::string& filename)
   int i, j;
 
   if ((iop = fopen(filename.c_str(), "r")) == 0) {
-    ROS_ERROR("could not open velodyne intensity calibration file %s", filename.c_str());
+    ROS_FATAL("could not open velodyne intensity calibration file %s", filename.c_str());
     ROS_BREAK(); //TODO: throw exception?
   }
   ROS_INFO("read velodyne intensity calibration file %s", filename.c_str());
@@ -258,7 +250,7 @@ void Configuration::readCalibration(const std::string& filename)
   spin_start_ = 18000;
 
   if ((iop = fopen(filename.c_str(), "r")) == 0) {
-    ROS_ERROR("could not open velodyne calibration file %s", filename.c_str());
+    ROS_FATAL("could not open velodyne calibration file %s", filename.c_str());
     ROS_BREAK(); //TODO: throw exception?
   }
   ROS_INFO("read velodyne calibration file %s", filename.c_str());
@@ -306,10 +298,11 @@ void Configuration::readCalibration(const std::string& filename)
 
   fclose(iop);
 
+  valid_ = true;
   recompute();
 }
 
-uint8_t Configuration::v_angle_to_beam_number(double v_angle) const
+unsigned Configuration::v_angle_to_beam_number(double v_angle) const
 {
   int n = (v_angle_max_ - v_angle) * v_angle_mult_;
   if( n <= 0 ) n = 0;

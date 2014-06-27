@@ -55,6 +55,7 @@ PacketToPcd::PacketToPcd()
 void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, PointCloud& pcd) const
 {
   ROS_ASSERT(config_);
+  ROS_ASSERT(config_->valid());
   //ScopedTimer timer("PacketToPcd::processPacket");
 
   pcd.reserve(pcd.size() + velodyne_rawdata::BLOCKS_PER_PACKET*velodyne_rawdata::SCANS_PER_BLOCK);
@@ -76,7 +77,7 @@ void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, Poi
       pt.h_angle = hAngle.getRads();
       pt.v_angle = rcfg.vert_angle_.getRads();
       pt.beam_id = n;
-      pt.beam_nb = config_->getInvBeamOrder(n);
+      pt.beam_nb = config_->getBeamNumber(n);
 
       // TODO: this could be a bit simpler if we were using a {ushort, uchar} structure
       const unsigned k = j * velodyne_rawdata::RAW_SCAN_SIZE;

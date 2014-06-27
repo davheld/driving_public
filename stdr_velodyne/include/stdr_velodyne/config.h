@@ -154,35 +154,57 @@ public:
 
   void printCalibrationData() const;
 
-  /// Transforms (block id and index is Scan) into a beam index in the [0-64] range.
+  inline bool valid() const { return valid_; }
+
+  /// Transforms (block id and index is Scan) into a beam hardware index in the
+  /// [0-64] range.
   inline unsigned getBeamIndex(uint16_t header, unsigned i) const
   { return i + ((header==velodyne_rawdata::LOWER_BANK) ? 32 : 0); }
 
-  /// Given a beam number (0 is top most), returns the corresponding index.
-  inline int getBeamOrder(unsigned i) const { return beam_order_[i]; }
+  /// Given a beam number (0 is top-most), returns the corresponding hardware index.
+  inline int getHardwareIndex(unsigned n) const
+  { return hardware_indexes_[n]; }
 
-  /// Given a beam index (as in the Scan message), returns the corresponding beam number (0 is top most).
-  inline int getInvBeamOrder(unsigned i) const { return inv_beam_order_[i]; }
+  /// Given a beam hardware index (as in the Scan message), returns the
+  /// corresponding beam number (0 is top-most).
+  inline int getBeamNumber(unsigned i) const
+  { return beam_numbers_[i]; }
 
   /// Returns the ring config for the beam indexed by @param i
-  inline const RingConfig & getRingConfig(unsigned i) const { return ring_config_[i]; }
+  inline const RingConfig & getRingConfig(unsigned i) const
+  { return ring_config_[i]; }
 
-  /// Returns the true intensity corresponding to the raw intensity returned by beam indexed by @param i.
-  inline unsigned correctIntensity(unsigned i, unsigned raw_val) const { return intensity_map_[inv_beam_order_[i]][raw_val]; }
+  /// Returns the true intensity corresponding to the raw intensity returned by
+  /// beam @param i (hardware index).
+  inline unsigned correctIntensity(unsigned i, unsigned raw_val) const
+  { return intensity_map_[beam_numbers_[i]][raw_val]; }
 
   /// Returns the beam number closest to the given v_angle
-  uint8_t v_angle_to_beam_number(double v_angle) const;
+  unsigned v_angle_to_beam_number(double v_angle) const;
 
 private:
   /// The static configuration instance (see getStaticConfigurationInstance())
   static Ptr static_configuration;
 
+  /// Constructed as invalid. Not valid until calibration data has been loaded.
+  bool valid_;
+
   unsigned        spin_start_; ///< encoder value for the begining of the spin
   double          range_multiplier_;
-  RingConfig      ring_config_[NUM_LASERS]; //organized by beam index
-  uint8_t         beam_order_[NUM_LASERS]; //organized by beam number
-  uint8_t         inv_beam_order_[NUM_LASERS]; //organized by beam index
-  uint8_t         intensity_map_[NUM_LASERS][256]; //organized by beam number
+
+  /// Rings configuration, stored by hardware index
+  RingConfig      ring_config_[NUM_LASERS];
+
+  /// Table lookup of beam hardware indexes: for beam number n,
+  /// hardware_indexes_[n] is the corresponding hardware index.
+  uint8_t         hardware_indexes_[NUM_LASERS];
+
+  /// Table lookup of beam numbers: for a beam number i, beam_numbers_[i] is the
+  /// corresponding beam number
+  uint8_t         beam_numbers_[NUM_LASERS];
+
+  /// The intensity correction lookup table, organized by beam number
+  uint8_t         intensity_map_[NUM_LASERS][256];
 
   static const unsigned V_ANGLE_TO_BEAM_NB_RES_N = 512;
   uint8_t v_angle_to_beam_number_table_[V_ANGLE_TO_BEAM_NB_RES_N];

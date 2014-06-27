@@ -35,6 +35,7 @@
   DAMAGE.
  ********************************************************/
 
+#include <signal.h>
 #include <ros/publisher.h>
 #include <stdr_lib/exception.h>
 #include <log_and_playback/data_reader.h>
@@ -45,15 +46,26 @@ using namespace log_and_playback;
 using std::cout;
 using std::endl;
 
+static volatile bool interrupted = false;
+
+void sighandler(int)
+{
+  interrupted = true;
+}
+
 int main(int argc, char **argv)
 {
+  signal(SIGINT, sighandler);
+
   ros::init(argc, argv, "profile_velodyne");
 
   SpinReader spin_reader;
 
+  unsigned nspins = std::numeric_limits<unsigned>::max();
   namespace bpo = boost::program_options;
   bpo::options_description opts_desc("Allowed options");
   opts_desc.add_options()("help,h", "produce help message");
+  opts_desc.add_options()("nspins,n", bpo::value<unsigned>(&nspins), "number of spins to play back");
   SpinReader::addOptions(opts_desc);
   boost::program_options::positional_options_description pos_opts_desc;
   SpinReader::addOptions(pos_opts_desc);
@@ -88,9 +100,9 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  HighResTimer timer("profiling loop"); timer.start();
+  HighResTimer timer("profiling_loop"); timer.start();
   ProfilerStart("profile_velodyne.prof");
-  while( spin_reader.nextSpin() && ros::ok() )
+  while( spin_reader.nextSpin() && ros::ok() && nspins-- > 0 && !interrupted )
   {
     spin_reader.getSpin();
     timer.stop();

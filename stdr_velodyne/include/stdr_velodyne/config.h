@@ -117,6 +117,7 @@ struct RingConfig
   void origin(uint16_t encoder, double *x, double *y, double *z) const;
 
   /// Returns the encoder value corresponding to a horizontal angle
+  /// The horizontal is defined in the velodyne frame (i.e. counter clock-wise)
   uint16_t h_angle_to_encoder(double h_angle) const;
 };
 
@@ -208,7 +209,7 @@ private:
 
   static const unsigned V_ANGLE_TO_BEAM_NB_RES_N = 512;
   uint8_t v_angle_to_beam_number_table_[V_ANGLE_TO_BEAM_NB_RES_N];
-  double v_angle_min_, v_angle_max_, v_angle_mult_;
+  double v_angle_max_, v_angle_mult_;
 
   void recompute();
 };

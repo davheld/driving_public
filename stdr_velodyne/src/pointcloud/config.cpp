@@ -162,18 +162,15 @@ struct beam_angle_t
   unsigned idx;
 };
 
-static int beamCompare(const void *a, const void *b)
+bool operator< (const beam_angle_t& a, const beam_angle_t& b)
 {
-  double angle_a = ((beam_angle_t *)a)->angle;
-  double angle_b = ((beam_angle_t *)b)->angle;
-  if (angle_a > angle_b) return 1;
-  else if (angle_a == angle_b) return 0;
-  else return -1;
+  return a.angle < b.angle;
 }
+
 
 void Configuration::recompute()
 {
-  beam_angle_t beam_angles[NUM_LASERS];
+  std::vector<beam_angle_t> beam_angles(NUM_LASERS);
 
   static const double enc2rad = 2*M_PI/NUM_TICKS;
 
@@ -187,18 +184,30 @@ void Configuration::recompute()
       rc.enc_rot_angle_[j].fromRads(rc.rot_angle_ - enc2rad*j);
   }
 
-  qsort(beam_angles, NUM_LASERS, sizeof(beam_angle_t), beamCompare);
+  // sort the beams from top to bottom
+  std::sort(beam_angles.begin(), beam_angles.end()); //first from bottom to top
+  std::reverse(beam_angles.begin(), beam_angles.end()); //then reverse
+
   for (unsigned i = 0; i < NUM_LASERS; i++) {
     hardware_indexes_[i] = beam_angles[i].idx;
     beam_numbers_[beam_angles[i].idx] = i;
   }
 
+  //verify that we got things right, i.e. that rings numbers are sorted from
+  //top to bottom.
+  for(unsigned b=1; b<NUM_LASERS; ++b) {
+    const double a_prev = getRingConfig(getHardwareIndex(b-1)).vert_angle_.getRads();
+    const double a = getRingConfig(getHardwareIndex(b)).vert_angle_.getRads();
+    ROS_ASSERT(a<a_prev);
+  }
+
   v_angle_max_ = beam_angles[0].angle;
-  v_angle_min_ = beam_angles[NUM_LASERS-1].angle;
-  v_angle_mult_ = static_cast<double>(V_ANGLE_TO_BEAM_NB_RES_N) / (v_angle_max_-v_angle_min_);
+  const double v_angle_min = beam_angles[NUM_LASERS-1].angle;
+  ROS_ASSERT(v_angle_min<v_angle_max_);
+  v_angle_mult_ = (double)V_ANGLE_TO_BEAM_NB_RES_N / (v_angle_max_-v_angle_min);
   for(unsigned i=0, j=0; i<V_ANGLE_TO_BEAM_NB_RES_N; ++i) {
-    const double a = i / v_angle_mult_;
-    if( j+1>=NUM_LASERS ||
+    const double a = v_angle_max_ - i / v_angle_mult_;
+    if( j+1<NUM_LASERS &&
         fabs(angles::shortest_angular_distance(a,beam_angles[j].angle)) >
         fabs(angles::shortest_angular_distance(a,beam_angles[j+1].angle)) )
       ++j;
@@ -210,9 +219,7 @@ void Configuration::recompute()
 
 void Configuration::readIntensity(const std::string& filename)
 {
-  FILE *iop;
-  int i, j;
-
+  FILE *iop = 0;
   if ((iop = fopen(filename.c_str(), "r")) == 0) {
     ROS_FATAL("could not open velodyne intensity calibration file %s", filename.c_str());
     ROS_BREAK(); //TODO: throw exception?
@@ -221,16 +228,18 @@ void Configuration::readIntensity(const std::string& filename)
 
   int min_intensity = 0;
   int max_intensity = 255;
-
   int dummy = fscanf(iop, "%d %d\n", &min_intensity, &max_intensity);
-  for (i = 0; i < NUM_LASERS; i++) {
-    for (j = 0; j < 256; j++) {
-      float ival=0;
+
+  for (unsigned i = 0; i < NUM_LASERS; i++) {
+    for (unsigned j = 0; j < 256; j++) {
+      float ival = 0.0f;
       dummy = fscanf(iop, "%f ", &ival);
       float expanded = (ival - min_intensity) / (max_intensity - min_intensity);
-      if (expanded < 0) expanded = 0;
-      if (expanded > 1) expanded = 1;
-      intensity_map_[i][j] = (unsigned char) (255 * expanded);
+      if (expanded < 0.0f) expanded = 0.0f;
+      if (expanded > 1.0f) expanded = 1.0f;
+
+      // in the file they are organized by reverse beam order so we invert it here
+      intensity_map_[NUM_LASERS -1 - i][j] = (unsigned char) (255 * expanded);
     }
   }
   fclose(iop);
@@ -304,7 +313,7 @@ void Configuration::readCalibration(const std::string& filename)
 
 unsigned Configuration::v_angle_to_beam_number(double v_angle) const
 {
-  int n = (v_angle_max_ - v_angle) * v_angle_mult_;
+  int n = (v_angle_max_-v_angle) * v_angle_mult_;
   if( n <= 0 ) n = 0;
   if( n >= V_ANGLE_TO_BEAM_NB_RES_N ) n = V_ANGLE_TO_BEAM_NB_RES_N - 1;
   return v_angle_to_beam_number_table_[n];

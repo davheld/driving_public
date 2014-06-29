@@ -48,6 +48,7 @@
 #include <log_and_playback/abstract_data_reader.h>
 #include <log_and_playback/bag_reader.h>
 #include <log_and_playback/dgclog_reader.h>
+#include <log_and_playback/kittireader.h>
 
 #include <stdr_velodyne/message_filter.h>
 #include <stdr_velodyne/pointcloud.h>
@@ -71,7 +72,9 @@ public:
   stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
   stdr_msgs::ApplanixRMS::ConstPtr instantiateApplanixRMS() const;
   velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const;
+  stdr_velodyne::PointCloudPtr instantiateVelodyneSpins() const;
   stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const;
+  bool kitti_;
 
 private:
   std::vector< boost::shared_ptr<AbstractDataReader> > readers_;
@@ -168,6 +171,7 @@ public:
 private:
   bool do_I_own_the_data_reader_;
   AbstractDataReader * data_reader_;
+  bool kitti_;
 
   stdr_velodyne::SpinCollector spin_collector_; //< buffer to get full spins
   stdr_velodyne::PointCloudPtr current_spin_;   //< current spin

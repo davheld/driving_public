@@ -40,6 +40,7 @@
 #include <dgc_transform/dgc_transform.h>
 #include <stdr_velodyne/transform.h>
 #include <log_and_playback/data_reader.h>
+#include <iostream>
 
 namespace bpo=boost::program_options;
 
@@ -59,6 +60,7 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
   readers_.clear();
   bool dgc_logs=false;
   std::vector<std::string> bag_logs;
+  std::vector<std::string> kitti_logs;
 
   BOOST_FOREACH(std::string const & path, logs)
   {
@@ -95,12 +97,21 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
       // load them all together later
       bag_logs.push_back(path);
     }
+    else if( path.length()>4 && path.substr(path.length()-4).compare(".kit")==0 )
+    {
+      kitti_logs.push_back(path);
+    }
+    else if( path.length()>4 && path.substr(path.length()-4).compare(".imu")==0 )
+    {
+      kitti_logs.push_back(path);
+    }
     else
     {
       ROS_INFO_STREAM("Unrecognized log file: " <<path <<". Skipping.");
     }
   }
 
+  // TODO: fix check for logs for kitti
   if( !dgc_logs && bag_logs.empty() ) {
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("You must provide some log files"));
   }
@@ -112,6 +123,11 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
     bag_reader->load_bags(bag_logs, skip);
     readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(bag_reader));
     ok_ = true;
+  } else if( !kitti_logs.empty() ) {
+    boost::shared_ptr<CombinedKittiReader> reader(new CombinedKittiReader);
+    reader_->load_logs(kitti_logs, skip);
+    readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
+    kitti_ = true;
   }
 
   std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
@@ -176,6 +192,14 @@ stdr_msgs::LadybugImages::ConstPtr DataReader::instantiateLadybugImages() const
   FUNC_BODY(stdr_msgs::LadybugImages, instantiateLadybugImages);
 }
 
+stdr_velodyne::PointCloudPtr DataReader::instantiateVelodyneSpins() const
+{
+  if(!kitti_) {
+    return stdr_velodyne::PointCloudPtr();
+  }
+
+  FUNC_BODY(stdr_velodyne::PointCloud, instantiateVelodyneSpins);
+}
 
 
 void BagTFListener::addApplanixPose(const stdr_msgs::ApplanixPose & pose)
@@ -244,6 +268,7 @@ void SpinReader::addOptions(boost::program_options::positional_options_descripti
 
 SpinReader::SpinReader()
 : do_I_own_the_data_reader_(false), data_reader_(0)
+, kitti_(false)
 , config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
 {
 
@@ -259,6 +284,7 @@ void SpinReader::setDataReader(AbstractDataReader & reader)
   unsetDataReader();
   data_reader_ = &reader;
   do_I_own_the_data_reader_ = false;
+  kitti_ = false;
 }
 
 void SpinReader::unsetDataReader()
@@ -273,6 +299,7 @@ void SpinReader::load(const std::vector< std::string > &logs, ros::Duration skip
   data_reader_ = new DataReader();
   do_I_own_the_data_reader_ = true;
   ((DataReader *)data_reader_)->load(logs, skip);
+  kitti_ = ((DataReader *)data_reader_)->kitti_;
 }
 
 stdr_velodyne::PointCloudConstPtr SpinReader::getSpin() const
@@ -338,17 +365,26 @@ bool SpinReader::nextSpin()
       tf_listener_.addApplanixPose(*applanix);
     }
 
-    velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader_->instantiateVelodyneScans();
-    if( scans ) {
-      ROS_DEBUG("got raw scan t=%.3f", scans->header.stamp.toSec());
-      BOOST_FOREACH(const velodyne_msgs::VelodynePacket & pkt, scans->packets) {
-        stdr_velodyne::PointCloud::Ptr pcd = boost::make_shared<stdr_velodyne::PointCloud>();
-        packet2pcd_convertor_.processPacket(pkt, *pcd);
-        std_msgs::Header h(scans->header);
-        h.stamp = pkt.stamp;
-        pcl_conversions::toPCL(h, pcd->header);
+
+    if (!kitti_){
+      velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader_->instantiateVelodyneScans();
+      if( scans) {
+        ROS_DEBUG("got raw scan t=%.3f", scans->header.stamp.toSec());
+        BOOST_FOREACH(const velodyne_msgs::VelodynePacket & pkt, scans->packets) {
+          stdr_velodyne::PointCloud::Ptr pcd = boost::make_shared<stdr_velodyne::PointCloud>();
+          packet2pcd_convertor_.processPacket(pkt, *pcd);
+          std_msgs::Header h(scans->header);
+          h.stamp = pkt.stamp;
+          pcl_conversions::toPCL(h, pcd->header);
+          spinQ_.push(pcd);
+        }
+      }
+    } else if (kitti_){
+      stdr_velodyne::PointCloudPtr pcd = (static_cast<DataReader*>(data_reader_))->instantiateVelodyneSpins();
+      if(pcd){
         spinQ_.push(pcd);
       }
+
     }
 
     spin = processSpinQueue();

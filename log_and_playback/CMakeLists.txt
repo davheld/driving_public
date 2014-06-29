@@ -26,12 +26,17 @@ add_library(${PROJECT_NAME}
   src/dgclogio.cpp
   src/dgclog_reader.cpp
   src/data_reader.cpp
+  src/kittireader.cpp
+  src/imu_kitti.cpp
+  src/sample_imu_reader.cpp
 
   include/log_and_playback/abstract_data_reader.h
   include/log_and_playback/bag_reader.h
   include/log_and_playback/data_reader.h
   include/log_and_playback/dgclog_reader.h
   include/log_and_playback/dgclogio.h
+  include/log_and_playback/kittireader.h
+  include/log_and_playback/imu_kitti.h
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
@@ -51,3 +56,10 @@ target_link_libraries(profile_velodyne ${PROJECT_NAME} ${GPERFTOOLS_PROFILER})
 
 add_executable(bag2dgc src/bag_to_dgc_converter.cpp)
 target_link_libraries(bag2dgc ${PROJECT_NAME})
+
+add_executable(imukitti src/imu_kitti.cpp)
+target_link_libraries(imukitti ${PROJECT_NAME})
+
+add_executable(sample_imu src/sample_imu_reader.cpp)
+target_link_libraries(sample_imu ${PROJECT_NAME})
+

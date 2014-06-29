@@ -166,9 +166,20 @@ public:
   inline int getHardwareIndex(unsigned n) const
   { return hardware_indexes_[n]; }
 
+  /// Given a beam number (0 is top most), returns the corresponding hardware index.
+  /// @deprecated keeping for backward compatibility, use getHardwareIndex() instead.
+  inline int getBeamOrder(unsigned n) const __attribute__ ((deprecated("use getHardwareIndex() instead")))
+  { return hardware_indexes_[n]; }
+
   /// Given a beam hardware index (as in the Scan message), returns the
   /// corresponding beam number (0 is top-most).
   inline int getBeamNumber(unsigned i) const
+  { return beam_numbers_[i]; }
+
+  /// Given a beam hardware index (as in the Scan message), returns the
+  /// corresponding beam number (0 is top-most).
+  /// @deprecated keeping for backward compatibility, use getBeamNumber() instead.
+  inline int getInvBeamOrder(unsigned i) const __attribute__ ((deprecated("use getBeamNumber() instead")))
   { return beam_numbers_[i]; }
 
   /// Returns the ring config for the beam indexed by @param i

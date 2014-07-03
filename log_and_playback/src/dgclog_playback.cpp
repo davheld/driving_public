@@ -64,8 +64,8 @@ http://answers.ros.org/question/11327/argument-for-subscriberstatuscallback-in-a
 
 DataReader data_reader;
 ros::Publisher clock_pub, scans_pub, pose_pub, gps_pub, rms_pub, ladybug_pub;
-float rate;
-ros::Time current_time;
+float rate, start_offset;
+ros::Time start_time, current_time;
 ros::WallTime last_wall_time;
 
 bool    terminal_modified = false;
@@ -78,13 +78,6 @@ bool paused = false;
 
 void printTime()
 {
-  static ros::Time start_time;
-  static bool first_time = true;
-  if( first_time ) {
-    start_time = current_time;
-    first_time = false;
-  }
-
   ros::Duration d = current_time - start_time;
 
   if (paused)
@@ -222,7 +215,8 @@ int main(int argc, char **argv)
   bpo::options_description opts_desc("Allowed options");
   opts_desc.add_options()
       ("help,h", "produce help message")
-      ("rate,r", bpo::value<float>(&rate)->default_value(1.0), "multiply the publish rate by the given factor")
+      ("rate,r", bpo::value<float>(&rate)->default_value(1.f), "multiply the publish rate by the given factor")
+      ("start,s", bpo::value<float>(&start_offset)->default_value(0.f), "start arg seconds into the bag files")
       ("logs", bpo::value< std::vector<std::string> >()->required(), "log files to load (bags or dgc logs)")
       ;
   bpo::positional_options_description pos_opts_desc;
@@ -247,12 +241,16 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  if( rate<=0 ) {
-    ROS_FATAL("The rate factor must be >0");
-    return 1;
-  }
+  ROS_ASSERT_MSG(rate>0, "The rate factor must be >0");
+  ROS_ASSERT_MSG(start_offset>=0, "The start offset must be >0");
 
   data_reader.load( opts["logs"].as< std::vector<std::string> >() );
+
+  // advance into the files until we reach the desired start time
+  start_time = data_reader.time();
+  const ros::Time first_time = start_time + ros::Duration(start_offset);
+  while( data_reader.ok() && nh.ok() && !signaled && data_reader.time() < first_time )
+    data_reader.next();
 
   ros::WallTime paused_time;
   bool read_ok = true;

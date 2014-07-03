@@ -39,6 +39,9 @@ PointCloudPtr SpinCollector::add(const PointCloud & packet)
 
 bool SpinCollector::add(const PointCloud & packet, PointCloud & spin)
 {
+  if(packet.empty())
+    return false;
+
   scopeLockWrite;
   bool complete = false;
 

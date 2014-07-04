@@ -26,7 +26,9 @@ add_message_files(
   PassatStatus.msg
   PointWithCurve.msg
   PointWithCurveArray.msg
+  PathBundle.msg
   Trajectory2D.msg
+  Trajectory2DBundle.msg
   TrajectoryPoint2D.msg
   TurnSignal.msg
 

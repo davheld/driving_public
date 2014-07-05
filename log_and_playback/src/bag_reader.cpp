@@ -83,9 +83,13 @@ void BagReader::load_bags(const std::vector<std::string> & bagpaths, ros::Durati
     ROS_DEBUG_STREAM("Loading data from " <<bagpath);
     boost::shared_ptr<rosbag::Bag> bag(new rosbag::Bag);
     bag->open(bagpath);
-    bags_.push_back(bag);
     rosbag::View view(*bag);
+    if( view.getBeginTime() > view.getEndTime() ) {
+      //bag is empty
+      continue;
+    }
     const ros::Time start_time = view.getBeginTime() + skip;
+    bags_.push_back(bag);
     view_->addQuery(*bag, rosbag::TopicQuery(topics), start_time);
   }
   const double duration = (view_->getEndTime()-view_->getBeginTime()).toSec();

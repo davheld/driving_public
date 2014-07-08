@@ -64,32 +64,36 @@ bool isExtension(const std::string & path, const std::string & ext)
 
 void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
 {
-  bool dgc=false, bag=false;
+  std::vector<std::string> bag_logs, dgc_logs;
   BOOST_FOREACH(std::string const & path, logs)
   {
-    if( isExtension(path,".log") || isExtension(path,".log.gz") || isExtension(path,".vlf") || isExtension(path,".llf") )
-      dgc = true;
-    else if( isExtension(path,"bag") )
-      bag = true;
+    if( isExtension(path, ".log") || isExtension(path, ".log.gz")
+        || isExtension(path, ".vlf") || isExtension(path, ".llf") )
+      dgc_logs.push_back(path);
+    else if( isExtension(path, "bag") )
+      bag_logs.push_back(path);
+    else
+      ROS_INFO_STREAM("Unrecognized log file: " <<path <<". Skipping.");
   }
 
   if( reader_ ) {
     delete reader_;
     reader_=0;
   }
-  if( dgc && bag ) {
+
+  if( dgc_logs.empty() && bag_logs.empty() ) {
+    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("You must provide some log files"));
+  }
+  else if( !dgc_logs.empty() && !bag_logs.empty() ) {
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("You cannot provide dgc logs and bags at the same time"));
   }
-  else if( dgc ) {
+  else if( !dgc_logs.empty() ) {
     reader_ = new CombinedDgcLogsReader;
-    ((CombinedDgcLogsReader *)reader_)->load_logs(logs, skip);
+    ((CombinedDgcLogsReader *)reader_)->load_logs(dgc_logs, skip);
   }
-  else if( bag ) {
+  else if( !bag_logs.empty() ) {
     reader_ = new BagReader;
-    ((BagReader *)reader_)->load_bags(logs, skip);
-  }
-  else {
-    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("Unrecognized log file formats"));
+    ((BagReader *)reader_)->load_bags(bag_logs, skip);
   }
 }
 

@@ -80,6 +80,7 @@ public:
 protected:
   bool calibrate_intensities_;
   bool skip_points_on_car_;
+  double max_dist_;
 
   /// static configuration instance
   Configuration::ConstPtr config_;

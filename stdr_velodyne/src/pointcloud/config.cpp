@@ -3,15 +3,15 @@
   Copyright (c) 2011 Stanford University
   All rights reserved.
 
-  Redistribution and use in source and binary forms, with 
-  or without modification, are permitted provided that the 
+  Redistribution and use in source and binary forms, with
+  or without modification, are permitted provided that the
   following conditions are met:
 
-* Redistributions of source code must retain the above 
-  copyright notice, this list of conditions and the 
+* Redistributions of source code must retain the above
+  copyright notice, this list of conditions and the
   following disclaimer.
 * Redistributions in binary form must reproduce the above
-  copyright notice, this list of conditions and the 
+  copyright notice, this list of conditions and the
   following disclaimer in the documentation and/or other
   materials provided with the distribution.
 * The names of the contributors may not be used to endorse
@@ -23,13 +23,13 @@
   WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
   WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
   PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, 
-  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR 
-  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, 
+  COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
   PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
   DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN 
-  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE 
+  CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
   OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
   SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
   DAMAGE.
@@ -92,33 +92,26 @@ double AngleVal::getDegrees() const
 
 
 RingConfig::RingConfig()
-: rot_angle_(0), range_offset_(0), range_offsetX_(0),
-  range_offsetY_(0), laser_enabled_(true), v_offset_(0), h_offset_(0)
+  : rot_angle_(0), range_offset_(0), range_offsetX_(0),
+    range_offsetY_(0), laser_enabled_(true), v_offset_(0), h_offset_(0)
 {
 
 }
 
-void RingConfig::project(uint16_t range, PointType *p) const
+float RingConfig::range2dist(uint16_t range) const
 {
-  static const float quiet_nan = std::numeric_limits<float>::quiet_NaN();
-  const AngleVal & e_angle = enc_rot_angle_[p->encoder];
-  const float dist = range * TICKS_TO_METER;
+  return range * TICKS_TO_METER + range_offset_;
+}
 
-  // TODO: use a parameter for the max distance
-  if (range == 0 || dist > 110 /*|| isnan(e_angle.sin_)*/) {
-    p->x = quiet_nan;
-    p->y = quiet_nan;
-    p->z = quiet_nan;
-    p->distance = USHRT_MAX;
-  }
-  else {
-    p->distance = dist + range_offset_;
-    const double xyDistance = p->distance * vert_angle_.cos();
-    // profiler says that too much time is spent retrieving e_angle.cos and e_angle.sin
-    p->x = xyDistance * e_angle.cos() - h_offset_ * e_angle.sin();
-    p->y = xyDistance * e_angle.sin() + h_offset_ * e_angle.cos();
-    p->z = xyDistance / vert_angle_.cos() * vert_angle_.sin() + v_offset_;
-  }
+void RingConfig::project(float distance, PointType *p) const
+{
+  const AngleVal & e_angle = enc_rot_angle_[p->encoder];
+  p->distance = distance;
+  const double xyDistance = p->distance * vert_angle_.cos();
+  // profiler says that too much time is spent retrieving e_angle.cos and e_angle.sin
+  p->x = xyDistance * e_angle.cos() - h_offset_ * e_angle.sin();
+  p->y = xyDistance * e_angle.sin() + h_offset_ * e_angle.cos();
+  p->z = xyDistance / vert_angle_.cos() * vert_angle_.sin() + v_offset_;
 }
 
 void RingConfig::origin(uint16_t e, double *x, double *y, double *z) const

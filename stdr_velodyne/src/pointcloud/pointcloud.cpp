@@ -36,8 +36,9 @@
  ********************************************************/
 
 #include <limits>
-#include <timer/timer.h>
 #include <velodyne_pointcloud/rawdata.h>
+#include <timer/timer.h>
+#include <stdr_lib/rosparam_helpers.h>
 #include <stdr_velodyne/pointcloud.h>
 
 
@@ -49,7 +50,7 @@ PacketToPcd::PacketToPcd()
 , skip_points_on_car_(true)
 , config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
 {
-
+  GET_ROS_PARAM_INFO(ros::NodeHandle("/driving/velodyne"), "max_dist", max_dist_, std::numeric_limits<double>::max());
 }
 
 void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, PointCloud& pcd) const
@@ -85,10 +86,13 @@ void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, Poi
       tmp.bytes[0] = block.data[k];
       tmp.bytes[1] = block.data[k+1];
       const uint16_t range = tmp.uint;
-      const float distance = range * velodyne_rawdata::DISTANCE_RESOLUTION;
+      const float distance = rcfg.range2dist(range);
 
       // quickly eliminates the points at the back of the car based on angle and distance
       if( skip_points_on_car_ && hAngle.cos() < -.5 && distance < 3 )
+        continue;
+
+      if( range==0 || distance>max_dist_ )
         continue;
 
       const uint8_t intensity = block.data[k+2];
@@ -97,7 +101,7 @@ void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, Poi
       else
         pt.intensity = intensity;
 
-      rcfg.project(range, &pt);
+      rcfg.project(distance, &pt);
 
       // further eliminates the points on the car based on full coordinates
       if( skip_points_on_car_ && pt.distance<4 && fabs(pt.y)<1.3 && pt.x<1.5 && pt.x>-3 )

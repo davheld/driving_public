@@ -30,7 +30,7 @@ applanixtopics = ["/driving/ApplanixPose", "/driving/ApplanixGPS",
 ladybugtopics = ["/driving/ladybug/images"]
 topicstoskip = ["/driving/velodyne/points", "/driving/velodyne/colored", 
   "/driving/velodyne/points_agg", "/driving/velodyne/raw_scans", 
-  "/driving/smooth", "/tf", 
+  "/driving/smooth", "/tf", "/driving/trajectories", 
   "/driving/perception/classification_result", "/driving/perception_velodyne"]
 
 def skip_topic(t):

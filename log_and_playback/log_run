@@ -21,20 +21,25 @@ import datetime
 config_files_param = (
   '/driving/velodyne/cal_file',
   '/driving/velodyne/ext_file', 
-  '/driving/velodyne/int_file'
+  '/driving/velodyne/int_file',
+  '/driving/fleaL/transform',
+  '/driving/fleaR/transform'
 )
 
 vlftopics = ["/driving/velodyne/packets"]
 applanixtopics = ["/driving/ApplanixPose", "/driving/ApplanixGPS", 
   "/driving/ApplanixRMS", "/driving/ApplanixDMI"]
-ladybugtopics = ["/driving/ladybug/images"]
+cameratopics = ["/driving/ladybug/images", "/driving/fleaL/camera/image_raw", 
+  "/driving/fleaL/camera/camera_info", "/driving/fleaR/camera/image_raw", 
+  "/driving/fleaR/camera/camera_info"]
 topicstoskip = ["/driving/velodyne/points", "/driving/velodyne/colored", 
   "/driving/velodyne/points_agg", "/driving/velodyne/raw_scans", 
   "/driving/smooth", "/tf", "/driving/trajectories", 
   "/driving/perception/classification_result", "/driving/perception_velodyne"]
 
 def skip_topic(t):
-  if t.startswith("/driving/ladybug/") or t.endswith("/bond") or \
+  if t.startswith("/driving/ladybug/") or t.startswith("/driving/fleaL") or \
+    t.startswith("/driving/fleaR") or t.endswith("/bond") or \
     t.endswith("/parameter_descriptions") or t.endswith("/parameter_updates"):
     return True
   return False
@@ -64,7 +69,7 @@ else:
 rostopic = subprocess.Popen(["rostopic","list"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 alltopics = rostopic.communicate()[0].splitlines()
 topicstoskip.extend( [t for t in alltopics if skip_topic(t)] )
-generaltopics = list(set(alltopics)-set(topicstoskip)-set(vlftopics+applanixtopics+ladybugtopics))
+generaltopics = list(set(alltopics)-set(topicstoskip)-set(vlftopics+applanixtopics+cameratopics))
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +119,7 @@ def makeLogger(name, topics):
   #print "Creating a new logger: " + " ".join(cmd)
   return subprocess.Popen(cmd, stdout=nullout, stderr=nullout)
 
-loggerDefs = (("tmplog.velodyne", vlftopics), ("tmplog.applanix", applanixtopics), ("tmplog.ladybug", ladybugtopics))
+loggerDefs = (("tmplog.velodyne", vlftopics), ("tmplog.applanix", applanixtopics), ("tmplog.cameras", cameratopics))
 loggers = [makeLogger(*args) for args in loggerDefs]
 if len(generaltopics)>0:
   loggers.append( makeLogger("tmplog", generaltopics) )

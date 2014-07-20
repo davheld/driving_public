@@ -42,7 +42,8 @@ for arg in sys.argv[1:]:
   if arg=='-h' or arg=='--help':
     help = True
   elif os.path.exists(arg) and os.path.isfile(arg):
-    if arg.endswith(".log.gz") or arg.endswith(".log") or arg.endswith(".vlf") or arg.endswith(".llf"):
+    if arg.endswith(".log.gz") or arg.endswith(".log") or arg.endswith(".vlf") \
+       or arg.endswith(".llf") or arg.endswith(".blf"):
       dgc = True
     elif arg.endswith(".bag"):
       bag = True

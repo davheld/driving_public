@@ -38,6 +38,7 @@
 #ifndef __LOG_AND_PLAYBACK__DATA_READER__H__
 #define __LOG_AND_PLAYBACK__DATA_READER__H__
 
+#include <boost/shared_ptr.hpp>
 #include <boost/program_options.hpp>
 
 #include <geometry_msgs/Point32.h>
@@ -60,15 +61,11 @@ namespace log_and_playback
 class DataReader : public AbstractDataReader
 {
 public:
-  DataReader();
-  ~DataReader();
-
-  /// load the data from the logs. Optionally skip the first @param skip seconds.
-  void load(const std::vector< std::string > &logs, ros::Duration skip=ros::Duration(0));
-
+  /// Load the logs. Optionally skip the first @param skip seconds.
+  void load(const std::vector<std::string> & logs, ros::Duration skip=ros::Duration(0));
   bool next();
-  bool ok() const { return reader_ && reader_->ok(); }
-  ros::Time time() const { ROS_ASSERT(reader_); return reader_->time(); }
+  bool ok() const { return ok_; }
+  ros::Time time() const { return time_; }
 
   stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const;
   stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
@@ -77,8 +74,11 @@ public:
   stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const;
 
 private:
-  AbstractDataReader * reader_;
+  std::vector< boost::shared_ptr<AbstractDataReader> > readers_;
+  bool ok_;
+  ros::Time time_;
 };
+
 
 /** A TransformListener that is convenient to use with bags.
  *

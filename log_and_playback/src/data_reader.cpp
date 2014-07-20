@@ -46,92 +46,136 @@ namespace bpo=boost::program_options;
 namespace log_and_playback
 {
 
-DataReader::DataReader()
-: reader_(0)
-{
 
-}
-
-DataReader::~DataReader()
+bool data_reader_time_compare(const boost::shared_ptr<AbstractDataReader>& a,
+                              const boost::shared_ptr<AbstractDataReader>& b)
 {
-  if( reader_ ) delete reader_;
-}
-
-bool isExtension(const std::string & path, const std::string & ext)
-{
-  return path.length()>ext.length() && path.substr(path.length()-ext.length()).compare(ext)==0;
+  return a->time() < b->time();
 }
 
 void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
 {
-  std::vector<std::string> bag_logs, dgc_logs;
+  ok_ = false;
+  readers_.clear();
+  bool dgc_logs=false;
+  std::vector<std::string> bag_logs;
+
   BOOST_FOREACH(std::string const & path, logs)
   {
-    if( isExtension(path, ".log") || isExtension(path, ".log.gz")
-        || isExtension(path, ".vlf") || isExtension(path, ".llf") )
-      dgc_logs.push_back(path);
-    else if( isExtension(path, "bag") )
+    if( (path.length()>4 && path.substr(path.length()-4).compare(".log")==0) ||
+        (path.length()>7 && path.substr(path.length()-7).compare(".log.gz")==0) )
+    {
+      boost::shared_ptr<LogDataReader> loggz_reader(new LogDataReader);
+      loggz_reader->open(path);
+      loggz_reader->next();
+      readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(loggz_reader));
+      ok_ = true;
+      dgc_logs = true;
+    }
+    else if( path.length()>4 && path.substr(path.length()-4).compare(".vlf")==0 )
+    {
+      boost::shared_ptr<VlfDataReader> vlf_reader(new VlfDataReader);
+      vlf_reader->open(path);
+      vlf_reader->next();
+      readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(vlf_reader));
+      ok_ = true;
+      dgc_logs = true;
+    }
+    else if( path.length()>4 && path.substr(path.length()-4).compare(".llf")==0 )
+    {
+      boost::shared_ptr<LlfDataReader> llf_reader(new LlfDataReader);
+      llf_reader->open(path);
+      llf_reader->next();
+      readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(llf_reader));
+      ok_ = true;
+      dgc_logs = true;
+    }
+    else if( path.length()>4 && path.substr(path.length()-4).compare(".bag")==0 )
+    {
+      // load them all together later
       bag_logs.push_back(path);
+    }
     else
+    {
       ROS_INFO_STREAM("Unrecognized log file: " <<path <<". Skipping.");
+    }
   }
 
-  if( reader_ ) {
-    delete reader_;
-    reader_=0;
-  }
-
-  if( dgc_logs.empty() && bag_logs.empty() ) {
+  if( !dgc_logs && bag_logs.empty() ) {
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("You must provide some log files"));
   }
-  else if( !dgc_logs.empty() && !bag_logs.empty() ) {
+  else if( dgc_logs && !bag_logs.empty() ) {
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("You cannot provide dgc logs and bags at the same time"));
   }
-  else if( !dgc_logs.empty() ) {
-    reader_ = new CombinedDgcLogsReader;
-    ((CombinedDgcLogsReader *)reader_)->load_logs(dgc_logs, skip);
-  }
   else if( !bag_logs.empty() ) {
-    reader_ = new BagReader;
-    ((BagReader *)reader_)->load_bags(bag_logs, skip);
+    boost::shared_ptr<BagReader> bag_reader(new BagReader);
+    bag_reader->load_bags(bag_logs, skip);
+    readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(bag_reader));
+    ok_ = true;
   }
+
+  std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
+
+  time_ = readers_.front()->time();
+  const ros::Time start_time = time_ + skip;
+  while( time_ < start_time && next() );
 }
 
 bool DataReader::next()
 {
-  ROS_ASSERT(reader_);
-  return reader_->next();
+  static ros::Time last_time=ros::TIME_MIN;
+  typedef std::vector< boost::shared_ptr<AbstractDataReader> > Readers;
+  for( Readers::iterator it = readers_.begin(); it!=readers_.end(); ) {
+    if( ! (*it)->ok() )
+      it = readers_.erase(it);
+    else
+      ++it;
+  }
+
+  if( readers_.empty() ) {
+    ok_ = false;
+    return false;
+  }
+
+  std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
+  readers_.front()->next();
+  std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
+
+  time_ = readers_.front()->time();
+  if( time_ < last_time )
+    ROS_WARN("negative time change");
+  last_time = time_;
+  ok_ = true;
+  return true;
 }
+
+#define FUNC_BODY(T, fn) return readers_.empty() ? T::ConstPtr() : readers_.front()->fn()
 
 stdr_msgs::ApplanixPose::ConstPtr DataReader::instantiateApplanixPose() const
 {
-  ROS_ASSERT(reader_);
-  return reader_->instantiateApplanixPose();
+  FUNC_BODY(stdr_msgs::ApplanixPose, instantiateApplanixPose);
 }
 
 stdr_msgs::ApplanixGPS::ConstPtr DataReader::instantiateApplanixGPS() const
 {
-  ROS_ASSERT(reader_);
-  return reader_->instantiateApplanixGPS();
+  FUNC_BODY(stdr_msgs::ApplanixGPS, instantiateApplanixGPS);
 }
 
 stdr_msgs::ApplanixRMS::ConstPtr DataReader::instantiateApplanixRMS() const
 {
-  ROS_ASSERT(reader_);
-  return reader_->instantiateApplanixRMS();
+  FUNC_BODY(stdr_msgs::ApplanixRMS, instantiateApplanixRMS);
 }
 
 velodyne_msgs::VelodyneScan::ConstPtr DataReader::instantiateVelodyneScans() const
 {
-  ROS_ASSERT(reader_);
-  return reader_->instantiateVelodyneScans();
+  FUNC_BODY(velodyne_msgs::VelodyneScan, instantiateVelodyneScans);
 }
 
 stdr_msgs::LadybugImages::ConstPtr DataReader::instantiateLadybugImages() const
 {
-  ROS_ASSERT(reader_);
-  return reader_->instantiateLadybugImages();
+  FUNC_BODY(stdr_msgs::LadybugImages, instantiateLadybugImages);
 }
+
 
 
 void BagTFListener::addApplanixPose(const stdr_msgs::ApplanixPose & pose)

@@ -129,35 +129,6 @@ private:
   stdr_msgs::LadybugImages::Ptr imgs_;
 };
 
-
-class CombinedDgcLogsReader : public AbstractDataReader
-{
-public:
-  CombinedDgcLogsReader();
-  /// Load the logs. Optionally skip the first @param skip seconds.
-  void load_logs(const std::vector<std::string> & logs, ros::Duration skip=ros::Duration(0));
-  bool next();
-  bool ok() const { return ok_; }
-  ros::Time time() const { return time_; }
-
-  stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const;
-  stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
-  stdr_msgs::ApplanixRMS::ConstPtr instantiateApplanixRMS() const;
-  velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const;
-  stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const;
-
-private:
-  LogDataReader loggz_reader_;
-  VlfDataReader vlf_reader_;
-  LlfDataReader llf_reader_;
-
-  typedef std::vector<AbstractDataReader*> Readers;
-  Readers readers_;
-
-  bool ok_;
-  ros::Time time_;
-};
-
 } //namespace log_and_playback
 
 #endif /* __LOG_AND_PLAYBACK__DGCLOG_READER__H__ */

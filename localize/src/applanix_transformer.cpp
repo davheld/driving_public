@@ -41,20 +41,21 @@
 namespace localize {
 
 
-ApplanixTransformer::ApplanixTransformer()
+ApplanixTransformer::ApplanixTransformer(std::string child_frame)
 {
   transform_smooth_to_baselinkxyz_.frame_id_ = "smooth";
-  transform_smooth_to_baselinkxyz_.child_frame_id_ = "base_link_xyz";
-  transform_baselinkxyz_to_baselink_.frame_id_ = "base_link_xyz";
-  transform_baselinkxyz_to_baselink_.child_frame_id_ = "base_link";
+  transform_smooth_to_baselinkxyz_.child_frame_id_ = child_frame + "_xyz";
+  transform_baselinkxyz_to_baselink_.frame_id_ = child_frame + "_xyz";
+  transform_baselinkxyz_to_baselink_.child_frame_id_ = child_frame;
+
+  odom_.header.frame_id = "smooth";
+  odom_.child_frame_id = child_frame;
 }
 
 
 void ApplanixTransformer::update(const stdr_msgs::ApplanixPose& pose)
 {
   odom_.header = pose.header;
-  odom_.header.frame_id = "smooth";
-  odom_.child_frame_id = "base_link";
 
   odom_.pose.pose.position.x = pose.smooth_x;
   odom_.pose.pose.position.y = pose.smooth_y;

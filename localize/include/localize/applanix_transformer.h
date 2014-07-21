@@ -54,7 +54,7 @@ namespace localize {
 class ApplanixTransformer
 {
 public:
-  ApplanixTransformer(std::string child_frame="base_link");
+  ApplanixTransformer(const std::string &child_frame="base_link");
 
   /// Adds both transforms to the transformer. Useful when working offline (playback)
   void addToTransformer(tf::Transformer & transformer, const std::string & authority = "default_authority") const;
@@ -62,6 +62,8 @@ public:
   void broadcast(tf::TransformBroadcaster & br) const;
 
   void update(const stdr_msgs::ApplanixPose &);
+
+  void setChildFrame(const std::string &child_frame);
 
   inline const nav_msgs::Odometry& odom() const { return odom_; }
 

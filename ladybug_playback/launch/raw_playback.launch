@@ -5,4 +5,5 @@
         args="manager" />
   
   <include file="$(find ladybug_playback)/launch/recombine_nodelet.launch"/>
+  <include file="$(find ladybug_proc)/launch/image_proc_nodelets.launch"/>
 </launch>

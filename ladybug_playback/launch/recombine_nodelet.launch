@@ -2,6 +2,6 @@
   <node pkg="nodelet" type="nodelet" name="recombine_nodelet"
         ns="/driving/ladybug"
         args="load ladybug_playback/recombine nodelet_manager">
-    <param name="debayer" value="true"/>
+    <param name="debayer" value="false"/>
   </node>
 </launch>

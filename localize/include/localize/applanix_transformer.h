@@ -64,12 +64,14 @@ public:
   void update(const stdr_msgs::ApplanixPose &);
 
   void setChildFrame(const std::string &child_frame);
+  void publishZ(bool t) { publish_z_ = t; }
 
   inline const nav_msgs::Odometry& odom() const { return odom_; }
 
 private:
+  bool publish_z_;
   nav_msgs::Odometry odom_;
-  tf::StampedTransform transform_smooth_to_baselinkxyz_, transform_baselinkxyz_to_baselink_;
+  tf::StampedTransform transform_smooth_to_smooth_z_, transform_smooth_z_to_baselinkxyz_, transform_baselinkxyz_to_baselink_;
 };
 
 } //namespace localize

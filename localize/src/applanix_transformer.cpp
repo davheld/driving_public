@@ -42,15 +42,20 @@ namespace localize {
 
 
 ApplanixTransformer::ApplanixTransformer(const std::string &child_frame)
+  : publish_z_(true)
 {
-  transform_smooth_to_baselinkxyz_.frame_id_ = "smooth";
+  transform_smooth_to_smooth_z_.frame_id_ = "smooth";
+  transform_smooth_to_smooth_z_.child_frame_id_ = "smooth_z";
+
+  transform_smooth_z_to_baselinkxyz_.frame_id_ = "smooth_z";
   odom_.header.frame_id = "smooth";
 
   setChildFrame(child_frame);
 }
 
 void ApplanixTransformer::setChildFrame(const std::string &child_frame) {
-  transform_smooth_to_baselinkxyz_.child_frame_id_ = child_frame + "_xyz";
+  transform_smooth_z_to_baselinkxyz_.child_frame_id_ = child_frame + "_xyz";
+
   transform_baselinkxyz_to_baselink_.frame_id_ = child_frame + "_xyz";
   transform_baselinkxyz_to_baselink_.child_frame_id_ = child_frame;
 
@@ -73,9 +78,13 @@ void ApplanixTransformer::update(const stdr_msgs::ApplanixPose& pose)
   odom_.twist.twist.angular.z = pose.rate_yaw;
 
 
-  transform_smooth_to_baselinkxyz_.setOrigin( tf::Vector3(pose.smooth_x, pose.smooth_y, pose.smooth_z) );
-  transform_smooth_to_baselinkxyz_.setRotation( tf::createQuaternionFromRPY(0, 0, 0) );
-  transform_smooth_to_baselinkxyz_.stamp_ = pose.header.stamp;
+  transform_smooth_to_smooth_z_.setOrigin( tf::Vector3(0, 0, pose.smooth_z) );
+  transform_smooth_to_smooth_z_.setRotation( tf::createQuaternionFromRPY(0, 0, 0) );
+  transform_smooth_to_smooth_z_.stamp_ = pose.header.stamp;
+
+  transform_smooth_z_to_baselinkxyz_.setOrigin( tf::Vector3(pose.smooth_x, pose.smooth_y, 0) );
+  transform_smooth_z_to_baselinkxyz_.setRotation( tf::createQuaternionFromRPY(0, 0, 0) );
+  transform_smooth_z_to_baselinkxyz_.stamp_ = pose.header.stamp;
 
   transform_baselinkxyz_to_baselink_.setOrigin( tf::Vector3(0, 0, 0) );
   transform_baselinkxyz_to_baselink_.setRotation( tf::createQuaternionFromRPY(pose.roll, pose.pitch, pose.yaw) );
@@ -85,14 +94,18 @@ void ApplanixTransformer::update(const stdr_msgs::ApplanixPose& pose)
 
 void ApplanixTransformer::broadcast(tf::TransformBroadcaster & br) const
 {
-  br.sendTransform(transform_smooth_to_baselinkxyz_);
+  if( publish_z_ )
+    br.sendTransform(transform_smooth_to_smooth_z_);
+  br.sendTransform(transform_smooth_z_to_baselinkxyz_);
   br.sendTransform(transform_baselinkxyz_to_baselink_);
 }
 
 
 void ApplanixTransformer::addToTransformer(tf::Transformer & transformer, const std::string & authority) const
 {
-  transformer.setTransform(transform_smooth_to_baselinkxyz_, authority);
+  if( publish_z_ )
+    transformer.setTransform(transform_smooth_to_smooth_z_, authority);
+  transformer.setTransform(transform_smooth_z_to_baselinkxyz_, authority);
   transformer.setTransform(transform_baselinkxyz_to_baselink_, authority);
 }
 

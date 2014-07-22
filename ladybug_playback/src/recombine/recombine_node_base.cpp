@@ -2,11 +2,11 @@
   Stanford Driving Software
   Copyright (c) 2011 Stanford University
   All rights reserved.
-  
+
   Redistribution and use in source and binary forms, with
   or without modification, are permitted provided that the
   following conditions are met:
-  
+
 * Redistributions of source code must retain the above
   copyright notice, this list of conditions and the
   following disclaimer.
@@ -17,7 +17,7 @@
 * The names of the contributors may not be used to endorse
   or promote products derived from this software
   without specific prior written permission.
-  
+
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
   CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
   WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -56,14 +56,15 @@ RecombineNodeBase::RecombineNodeBase(ros::NodeHandle & nh, ros::NodeHandle & pri
     nh.getParam(std::string("/driving/ladybug/intrinsics")+istr, camera_info_url);
     camera_info_url = std::string("file://") + camera_info_url;
 
-    ros::NodeHandle nh(ns);
-    cinfos_[i].reset(new camera_info_manager::CameraInfoManager(nh));
+    ros::NodeHandle cimnh(ns);
+    cinfos_[i].reset(new camera_info_manager::CameraInfoManager(cimnh));
     cinfos_[i]->setCameraName(std::string("ladybug") + istr);
 
     if( ! cinfos_[i]->loadCameraInfo(camera_info_url) ) {
       ROS_WARN_STREAM("Could not load calibration information for camera "
                       <<i <<" at URL " <<camera_info_url
                       <<". Publishing uncalibrated images.");
+      cinfos_[i].reset();
     }
   }
 
@@ -116,14 +117,39 @@ void RecombineNodeBase::imageCb(const stdr_msgs::LadybugImages::ConstPtr& raw_ms
   boost::lock_guard<boost::recursive_mutex> lock(mutex_);
   ROS_INFO_STREAM("Recombining frame seq=" <<raw_msg->header.seq <<" stamp=" <<raw_msg->header.stamp);
   std::vector<sensor_msgs::Image::Ptr> images;
+
   recombine(*raw_msg, images);
-  for( unsigned i=0; i<NCAMS; ++i ) {
+
+  // publish
+  for( unsigned i=0; i<NCAMS; ++i )
+  {
     if( selector_[i] && images[i] ) {
+
+      // if we failed to load the configuration file, try to at least provide
+      // the size info that we can get from the image.
+      if( !cinfos_[i] )
+      {
+        const std::string istr = boost::lexical_cast<std::string>(i);
+        const std::string ns = std::string("/driving/ladybug/camera") + istr;
+        ros::NodeHandle cimnh(ns);
+        cinfos_[i].reset(new camera_info_manager::CameraInfoManager(cimnh));
+        cinfos_[i]->setCameraName(std::string("ladybug") + istr);
+        sensor_msgs::CameraInfo ci;
+        ci.header = images[i]->header;
+        ci.width = images[i]->width;
+        ci.height = images[i]->height;
+        // leaving roi and binning to 0, which is considered the same as full
+        // size and no subsampling
+        cinfos_[i]->setCameraInfo(ci);
+      }
+
       sensor_msgs::CameraInfo::Ptr
         ci(new sensor_msgs::CameraInfo(cinfos_[i]->getCameraInfo()));
       ci->header = images[i]->header;
       pubs_[i].publish(images[i], ci);
-      ROS_INFO_STREAM("Published recombined image " <<i <<", seq=" <<images[i]->header.seq <<" stamp=" <<images[i]->header.stamp);
+      ROS_INFO_STREAM("Published recombined image " <<i
+                      <<", seq=" <<images[i]->header.seq
+                      <<" stamp=" <<images[i]->header.stamp);
     }
   }
 }

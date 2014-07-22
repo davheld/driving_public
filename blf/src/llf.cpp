@@ -92,8 +92,8 @@ void LLFReader::open( const char* blf_file )
     const int hours = seconds / 3600;
     const int min = (seconds - hours * 3600) / 60;
     const int sec = seconds - hours * 3600 - min * 60;
-    ROS_INFO("Opened BLF file %s.", blf_file);
-    ROS_INFO("Logfile length: %02dh:%02dmin:%02dsec\n", hours, min, sec);
+    ROS_INFO("Opened LLF file %s", blf_file);
+    ROS_INFO("Logfile length: %02dh:%02dmin:%02dsec", hours, min, sec);
   }
 }
 

@@ -29,9 +29,9 @@ config_files_param = (
 vlftopics = ["/driving/velodyne/packets"]
 applanixtopics = ["/driving/ApplanixPose", "/driving/ApplanixGPS", 
   "/driving/ApplanixRMS", "/driving/ApplanixDMI"]
-cameratopics = ["/driving/ladybug/images", "/driving/fleaL/camera/image_raw", 
-  "/driving/fleaL/camera/camera_info", "/driving/fleaR/camera/image_raw", 
-  "/driving/fleaR/camera/camera_info"]
+cameratopics = ["/driving/ladybug/images", "/driving/fleaL/image_raw", 
+  "/driving/fleaL/camera_info", "/driving/fleaR/image_raw", 
+  "/driving/fleaR/camera_info"]
 topicstoskip = ["/driving/velodyne/points", "/driving/velodyne/colored", 
   "/driving/velodyne/points_agg", "/driving/velodyne/raw_scans", 
   "/driving/smooth", "/tf", "/driving/trajectories", 

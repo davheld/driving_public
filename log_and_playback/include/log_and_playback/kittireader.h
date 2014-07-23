@@ -67,8 +67,7 @@ public:
 
   ros::Time time() const { return time_; }
 
-  velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const { return scan_; }
-  stdr_velodyne::PointCloudPtr instantiateVelodyneSpins() const { return spin_; }
+  stdr_velodyne::PointCloud::ConstPtr instantiateVelodyneSpin() const { return spin_; }
 
 protected:
 
@@ -77,8 +76,7 @@ protected:
 
 private:
   std::ifstream vfile_;
-  velodyne_msgs::VelodyneScan::Ptr scan_;
-  stdr_velodyne::PointCloudPtr spin_;
+  stdr_velodyne::PointCloud::Ptr spin_;
   ros::Time time_;
   bool ok_;
 };
@@ -93,19 +91,12 @@ public:
   bool ok() const { return ok_; }
   ros::Time time() const { return time_; }
 
-  //bool data_reader_time_compare(const AbstractDataReader *a, const AbstractDataReader *b);
-
   stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const;
-  stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
-  stdr_msgs::ApplanixRMS::ConstPtr instantiateApplanixRMS() const;
-  velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const;
-  stdr_velodyne::PointCloudPtr instantiateVelodyneSpins();// const;
-  //stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const;
+  stdr_velodyne::PointCloud::ConstPtr instantiateVelodyneSpin() const;
 
 private:
   KittiApplanixReader loggz_reader_;
   KittiVeloReader vlf_reader_;
-  //LlfDataReader llf_reader_;
 
   typedef std::vector<AbstractDataReader*> Readers;
   Readers readers_;

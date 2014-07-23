@@ -72,7 +72,7 @@ public:
   stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
   stdr_msgs::ApplanixRMS::ConstPtr instantiateApplanixRMS() const;
   velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const;
-  stdr_velodyne::PointCloudPtr instantiateVelodyneSpins() const;
+  stdr_velodyne::PointCloud::ConstPtr instantiateVelodyneSpin() const;
   stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const;
   bool kitti_;
 

@@ -125,7 +125,7 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
     ok_ = true;
   } else if( !kitti_logs.empty() ) {
     boost::shared_ptr<CombinedKittiReader> reader(new CombinedKittiReader);
-    reader_->load_logs(kitti_logs, skip);
+    reader->load_logs(kitti_logs, skip);
     readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
     kitti_ = true;
   }
@@ -192,13 +192,13 @@ stdr_msgs::LadybugImages::ConstPtr DataReader::instantiateLadybugImages() const
   FUNC_BODY(stdr_msgs::LadybugImages, instantiateLadybugImages);
 }
 
-stdr_velodyne::PointCloudPtr DataReader::instantiateVelodyneSpins() const
+stdr_velodyne::PointCloud::ConstPtr DataReader::instantiateVelodyneSpin() const
 {
   if(!kitti_) {
-    return stdr_velodyne::PointCloudPtr();
+    return stdr_velodyne::PointCloud::ConstPtr();
   }
 
-  FUNC_BODY(stdr_velodyne::PointCloud, instantiateVelodyneSpins);
+  FUNC_BODY(stdr_velodyne::PointCloud, instantiateVelodyneSpin);
 }
 
 
@@ -380,7 +380,7 @@ bool SpinReader::nextSpin()
         }
       }
     } else if (kitti_){
-      stdr_velodyne::PointCloudPtr pcd = (static_cast<DataReader*>(data_reader_))->instantiateVelodyneSpins();
+      stdr_velodyne::PointCloud::ConstPtr pcd = (static_cast<DataReader*>(data_reader_))->instantiateVelodyneSpin();
       if(pcd){
         spinQ_.push(pcd);
       }

@@ -208,11 +208,10 @@ bool KittiVeloReader::next()
 
         if(!vfile_.good()){
             ok_ = false;
-            spin_->clear();
             return ok_;
         }
 
-        spin_->clear();
+        spin_.reset(new stdr_velodyne::PointCloud);
         spin_->reserve(spin_->size() + num_points);
 
         spin_->header.frame_id = "velodyne";
@@ -339,9 +338,10 @@ bool CombinedKittiReader::next(){
 
 }
 
-stdr_velodyne::PointCloudPtr CombinedKittiReader::instantiateVelodyneSpins(){
+stdr_velodyne::PointCloud::ConstPtr CombinedKittiReader::instantiateVelodyneSpin() const
+{
     if (vlf_reader_.ok()){
-        return vlf_reader_.instantiateVelodyneSpins();
+        return vlf_reader_.instantiateVelodyneSpin();
     } else {
         return stdr_velodyne::PointCloudPtr();
     }
@@ -352,28 +352,9 @@ stdr_velodyne::PointCloudPtr CombinedKittiReader::instantiateVelodyneSpins(){
 
 stdr_msgs::ApplanixPose::ConstPtr CombinedKittiReader::instantiateApplanixPose() const
 {
-   if (loggz_reader_.ok()){
+   if (loggz_reader_.ok())
     return loggz_reader_.instantiateApplanixPose();
-    } else {
-      return stdr_msgs::ApplanixPose::Ptr();
-    }
+   return stdr_msgs::ApplanixPose::ConstPtr();
 }
-
-stdr_msgs::ApplanixGPS::ConstPtr CombinedKittiReader::instantiateApplanixGPS() const
-{
-    return loggz_reader_.instantiateApplanixGPS();
-}
-
-stdr_msgs::ApplanixRMS::ConstPtr CombinedKittiReader::instantiateApplanixRMS() const
-{
-    return loggz_reader_.instantiateApplanixRMS();
-}
-
-velodyne_msgs::VelodyneScan::ConstPtr CombinedKittiReader::instantiateVelodyneScans() const
-{
-    return vlf_reader_.instantiateVelodyneScans();
-}
-
-
 
 }

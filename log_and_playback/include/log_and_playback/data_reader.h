@@ -74,7 +74,6 @@ public:
   velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const;
   stdr_velodyne::PointCloud::ConstPtr instantiateVelodyneSpin() const;
   stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const;
-  bool kitti_;
 
 private:
   std::vector< boost::shared_ptr<AbstractDataReader> > readers_;
@@ -171,7 +170,6 @@ public:
 private:
   bool do_I_own_the_data_reader_;
   AbstractDataReader * data_reader_;
-  bool kitti_;
 
   stdr_velodyne::SpinCollector spin_collector_; //< buffer to get full spins
   stdr_velodyne::PointCloudPtr current_spin_;   //< current spin

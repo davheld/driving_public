@@ -125,8 +125,6 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::strin
 
 bool KittiApplanixReader::next(){
     pose_.reset();
-    gps_.reset();
-    rms_.reset();
 
     while( true )
     {
@@ -153,17 +151,7 @@ KittiApplanixReader::instantiateApplanixPose() const
     return pose_;
 }
 
-stdr_msgs::ApplanixGPS::ConstPtr
-KittiApplanixReader::instantiateApplanixGPS() const
-{
-    return gps_;
-}
 
-stdr_msgs::ApplanixRMS::ConstPtr
-KittiApplanixReader::instantiateApplanixRMS() const
-{
-    return rms_;
-}
 
 KittiVeloReader::~KittiVeloReader()
 {
@@ -247,7 +235,7 @@ bool KittiVeloReader::next()
 
             const stdr_velodyne::RingConfig & rcfg = config_->getRingConfig(beam_id);
             v_angle = rcfg.vert_angle_.getRads();
-            beam_nb = config_->getInvBeamOrder(beam_id);
+            beam_nb = config_->getBeamNumber(beam_id);
             encoder = (uint16_t)(h_angle* 100);
 
             // update point data
@@ -270,91 +258,6 @@ bool KittiVeloReader::next()
         ok_ = false;
         return ok_;
     }
-}
-
-CombinedKittiReader::CombinedKittiReader(){
-}
-
-
-bool data_reader_time_compare2(const AbstractDataReader *a, const AbstractDataReader *b)
-{
-    return a->time() < b->time();
-}
-
-
-void CombinedKittiReader::load_logs(const std::vector<std::string> & logs, ros::Duration skip){
-    ok_ = false;
-    readers_.clear();
-
-    BOOST_FOREACH(std::string const & path, logs) {
-        if( (path.length()>4 && path.substr(path.length()-4).compare(".kit")==0) )
-            vlf_reader_.open(path);
-        else if( path.length()>4 && path.substr(path.length()-4).compare(".imu")==0 )
-            loggz_reader_.open(path);
-    }
-
-    if( loggz_reader_.ok() ) {
-        loggz_reader_.next();
-        readers_.push_back(&loggz_reader_);
-        ok_ = true;
-    }
-    if( vlf_reader_.ok() ) {
-        vlf_reader_.next();
-        readers_.push_back(&vlf_reader_);
-        ok_ = true;
-    }
-
-    std::sort(readers_.begin(), readers_.end(), data_reader_time_compare2);
-
-    time_ = readers_.front()->time();
-    const ros::Time start_time = time_ + skip;
-    while( time_ < start_time && next() );
-}
-
-bool CombinedKittiReader::next(){
-    static ros::Time last_time=ros::TIME_MIN;
-    for( Readers::iterator it = readers_.begin(); it!=readers_.end(); ) {
-        if( ! (*it)->ok() )
-            it = readers_.erase(it);
-        else
-            ++it;
-    }
-
-    if( readers_.empty() ) {
-        ok_ = false;
-        return false;
-    }
-
-    std::sort(readers_.begin(), readers_.end(), data_reader_time_compare2);
-    readers_.front()->next();
-    std::sort(readers_.begin(), readers_.end(), data_reader_time_compare2);
-
-    time_ = readers_.front()->time();
-    if( time_ < last_time )
-        ROS_WARN("negative time change");
-    last_time = time_;
-    ok_ = true;
-    return true;
-
-}
-
-stdr_velodyne::PointCloud::ConstPtr CombinedKittiReader::instantiateVelodyneSpin() const
-{
-    if (vlf_reader_.ok()){
-        return vlf_reader_.instantiateVelodyneSpin();
-    } else {
-        return stdr_velodyne::PointCloudPtr();
-    }
-
-}
-
-#define FUNC_BODY(T, fn) return readers_.empty() ? T::ConstPtr() : readers_.front()->fn()
-
-stdr_msgs::ApplanixPose::ConstPtr CombinedKittiReader::instantiateApplanixPose() const
-{
-   if (loggz_reader_.ok())
-    return loggz_reader_.instantiateApplanixPose();
-   return stdr_msgs::ApplanixPose::ConstPtr();
 }
 
 }

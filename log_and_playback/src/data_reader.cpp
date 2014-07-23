@@ -58,9 +58,8 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
 {
   ok_ = false;
   readers_.clear();
-  bool dgc_logs=false;
+  bool dgc_logs=false, kitti_logs=false;
   std::vector<std::string> bag_logs;
-  std::vector<std::string> kitti_logs;
 
   BOOST_FOREACH(std::string const & path, logs)
   {
@@ -99,11 +98,21 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
     }
     else if( path.length()>4 && path.substr(path.length()-4).compare(".kit")==0 )
     {
-      kitti_logs.push_back(path);
+      boost::shared_ptr<KittiVeloReader> reader(new KittiVeloReader);
+      reader->open(path);
+      reader->next();
+      readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
+      ok_ = true;
+      kitti_logs = true;
     }
     else if( path.length()>4 && path.substr(path.length()-4).compare(".imu")==0 )
     {
-      kitti_logs.push_back(path);
+      boost::shared_ptr<KittiApplanixReader> reader(new KittiApplanixReader);
+      reader->open(path);
+      reader->next();
+      readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
+      ok_ = true;
+      kitti_logs = true;
     }
     else
     {
@@ -111,23 +120,25 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
     }
   }
 
-  // TODO: fix check for logs for kitti
-  if( !dgc_logs && bag_logs.empty() ) {
+  // check that we actually got some valid logs, and that we are dealing with
+  // only one type of log files
+  unsigned n_types = 0;
+  if( dgc_logs ) ++n_types;
+  if( !bag_logs.empty() ) ++n_types;
+  if( kitti_logs ) ++n_types;
+
+  if( n_types==0 ) {
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("You must provide some log files"));
   }
-  else if( dgc_logs && !bag_logs.empty() ) {
+  else if( n_types>1 ) {
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("You cannot provide dgc logs and bags at the same time"));
   }
-  else if( !bag_logs.empty() ) {
+
+  if( !bag_logs.empty() ) {
     boost::shared_ptr<BagReader> bag_reader(new BagReader);
     bag_reader->load_bags(bag_logs, skip);
     readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(bag_reader));
     ok_ = true;
-  } else if( !kitti_logs.empty() ) {
-    boost::shared_ptr<CombinedKittiReader> reader(new CombinedKittiReader);
-    reader->load_logs(kitti_logs, skip);
-    readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
-    kitti_ = true;
   }
 
   std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
@@ -194,10 +205,6 @@ stdr_msgs::LadybugImages::ConstPtr DataReader::instantiateLadybugImages() const
 
 stdr_velodyne::PointCloud::ConstPtr DataReader::instantiateVelodyneSpin() const
 {
-  if(!kitti_) {
-    return stdr_velodyne::PointCloud::ConstPtr();
-  }
-
   FUNC_BODY(stdr_velodyne::PointCloud, instantiateVelodyneSpin);
 }
 
@@ -268,7 +275,6 @@ void SpinReader::addOptions(boost::program_options::positional_options_descripti
 
 SpinReader::SpinReader()
 : do_I_own_the_data_reader_(false), data_reader_(0)
-, kitti_(false)
 , config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
 {
 
@@ -284,7 +290,6 @@ void SpinReader::setDataReader(AbstractDataReader & reader)
   unsetDataReader();
   data_reader_ = &reader;
   do_I_own_the_data_reader_ = false;
-  kitti_ = false;
 }
 
 void SpinReader::unsetDataReader()
@@ -299,7 +304,6 @@ void SpinReader::load(const std::vector< std::string > &logs, ros::Duration skip
   data_reader_ = new DataReader();
   do_I_own_the_data_reader_ = true;
   ((DataReader *)data_reader_)->load(logs, skip);
-  kitti_ = ((DataReader *)data_reader_)->kitti_;
 }
 
 stdr_velodyne::PointCloudConstPtr SpinReader::getSpin() const
@@ -365,8 +369,8 @@ bool SpinReader::nextSpin()
       tf_listener_.addApplanixPose(*applanix);
     }
 
-
-    if (!kitti_){
+    stdr_velodyne::PointCloud::ConstPtr pcd = data_reader_->instantiateVelodyneSpin();
+    if( !pcd ) {
       velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader_->instantiateVelodyneScans();
       if( scans) {
         ROS_DEBUG("got raw scan t=%.3f", scans->header.stamp.toSec());
@@ -379,12 +383,9 @@ bool SpinReader::nextSpin()
           spinQ_.push(pcd);
         }
       }
-    } else if (kitti_){
-      stdr_velodyne::PointCloud::ConstPtr pcd = (static_cast<DataReader*>(data_reader_))->instantiateVelodyneSpin();
-      if(pcd){
+    }
+    else {
         spinQ_.push(pcd);
-      }
-
     }
 
     spin = processSpinQueue();

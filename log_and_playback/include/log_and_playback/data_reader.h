@@ -48,6 +48,7 @@
 #include <log_and_playback/abstract_data_reader.h>
 #include <log_and_playback/bag_reader.h>
 #include <log_and_playback/dgclog_reader.h>
+#include <log_and_playback/kittireader.h>
 
 #include <stdr_velodyne/message_filter.h>
 #include <stdr_velodyne/pointcloud.h>
@@ -71,6 +72,7 @@ public:
   stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
   stdr_msgs::ApplanixRMS::ConstPtr instantiateApplanixRMS() const;
   velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const;
+  stdr_velodyne::PointCloud::ConstPtr instantiateVelodyneSpin() const;
   stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const;
 
 private:

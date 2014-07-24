@@ -40,6 +40,7 @@
 #include <dgc_transform/dgc_transform.h>
 #include <stdr_velodyne/transform.h>
 #include <log_and_playback/data_reader.h>
+#include <iostream>
 
 namespace bpo=boost::program_options;
 
@@ -57,7 +58,7 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
 {
   ok_ = false;
   readers_.clear();
-  bool dgc_logs=false;
+  bool dgc_logs=false, kitti_logs=false;
   std::vector<std::string> bag_logs;
 
   BOOST_FOREACH(std::string const & path, logs)
@@ -95,19 +96,45 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
       // load them all together later
       bag_logs.push_back(path);
     }
+    else if( path.length()>4 && path.substr(path.length()-4).compare(".kit")==0 )
+    {
+      boost::shared_ptr<KittiVeloReader> reader(new KittiVeloReader);
+      reader->open(path);
+      reader->next();
+      readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
+      ok_ = true;
+      kitti_logs = true;
+    }
+    else if( path.length()>4 && path.substr(path.length()-4).compare(".imu")==0 )
+    {
+      boost::shared_ptr<KittiApplanixReader> reader(new KittiApplanixReader);
+      reader->open(path);
+      reader->next();
+      readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
+      ok_ = true;
+      kitti_logs = true;
+    }
     else
     {
       ROS_INFO_STREAM("Unrecognized log file: " <<path <<". Skipping.");
     }
   }
 
-  if( !dgc_logs && bag_logs.empty() ) {
+  // check that we actually got some valid logs, and that we are dealing with
+  // only one type of log files
+  unsigned n_types = 0;
+  if( dgc_logs ) ++n_types;
+  if( !bag_logs.empty() ) ++n_types;
+  if( kitti_logs ) ++n_types;
+
+  if( n_types==0 ) {
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("You must provide some log files"));
   }
-  else if( dgc_logs && !bag_logs.empty() ) {
+  else if( n_types>1 ) {
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("You cannot provide dgc logs and bags at the same time"));
   }
-  else if( !bag_logs.empty() ) {
+
+  if( !bag_logs.empty() ) {
     boost::shared_ptr<BagReader> bag_reader(new BagReader);
     bag_reader->load_bags(bag_logs, skip);
     readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(bag_reader));
@@ -176,6 +203,10 @@ stdr_msgs::LadybugImages::ConstPtr DataReader::instantiateLadybugImages() const
   FUNC_BODY(stdr_msgs::LadybugImages, instantiateLadybugImages);
 }
 
+stdr_velodyne::PointCloud::ConstPtr DataReader::instantiateVelodyneSpin() const
+{
+  FUNC_BODY(stdr_velodyne::PointCloud, instantiateVelodyneSpin);
+}
 
 
 void BagTFListener::addApplanixPose(const stdr_msgs::ApplanixPose & pose)
@@ -326,28 +357,32 @@ bool SpinReader::prevSpin()
 
 bool SpinReader::nextSpin()
 {
+  stdr_msgs::ApplanixPose::ConstPtr applanix;
+  stdr_velodyne::PointCloud::ConstPtr pcd;
+  velodyne_msgs::VelodyneScan::ConstPtr scans;
+
   stdr_velodyne::PointCloudPtr spin = processSpinQueue();
   while( !spin && ros::ok() )
   {
     if( !data_reader_->next() )
       return false;
 
-    stdr_msgs::ApplanixPose::ConstPtr applanix = data_reader_->instantiateApplanixPose();
-    if( applanix ) {
+    if( applanix = data_reader_->instantiateApplanixPose() ) {
       ROS_DEBUG("Adding applanix pose t=%.3f", applanix->header.stamp.toSec());
       tf_listener_.addApplanixPose(*applanix);
     }
-
-    velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader_->instantiateVelodyneScans();
-    if( scans ) {
+    else if( pcd = data_reader_->instantiateVelodyneSpin() ) {
+      spinQ_.push(pcd);
+    }
+    else if( scans = data_reader_->instantiateVelodyneScans() ) {
       ROS_DEBUG("got raw scan t=%.3f", scans->header.stamp.toSec());
       BOOST_FOREACH(const velodyne_msgs::VelodynePacket & pkt, scans->packets) {
-        stdr_velodyne::PointCloud::Ptr pcd = boost::make_shared<stdr_velodyne::PointCloud>();
-        packet2pcd_convertor_.processPacket(pkt, *pcd);
+        stdr_velodyne::PointCloud::Ptr pcd_ = boost::make_shared<stdr_velodyne::PointCloud>();
+        packet2pcd_convertor_.processPacket(pkt, *pcd_);
         std_msgs::Header h(scans->header);
         h.stamp = pkt.stamp;
-        pcl_conversions::toPCL(h, pcd->header);
-        spinQ_.push(pcd);
+        pcl_conversions::toPCL(h, pcd_->header);
+        spinQ_.push(pcd_);
       }
     }
 

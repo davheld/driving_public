@@ -78,7 +78,9 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::strin
     char space;
     std::stringstream ss(line);
 
-    ep_time = static_cast<double>(epoch_time) * 1e-6;//* 1e-9;
+    ss >> epoch_time;
+
+    ep_time = static_cast<double>(epoch_time) * 1e-9;//* 1e-9;
     for(int i=0; i<25; i++){
         ss >> data[i];
     }

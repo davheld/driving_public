@@ -6,6 +6,8 @@
 #  this should include some tags for vehicles, to indicate things like if
 #  a vehicle is being waited for at an intersection, or if we're following
 #  or yeilding to another vehicle
+#   - I'm not quite sure how to draw these yet. perhaps a pile of words, or
+#     perhaps as small icons above each vehicle
 #
 #  this should also include the planner's prediction(s) for a vehicle's future
 #  position. It should be rich enough to represent multiple, probabilistically
@@ -27,4 +29,17 @@
 # I expect this message deifnition to change and grow as I find additional
 #  things that need to be added to it
 
+# original track ID
+uint64 id
+
+# original track type
+uint8 type
+
+# annotation tags
 string[] tags
+
+# the vehicle's position on the RNDF
+geometry_msgs/Point rndf_point
+
+# predictions about the vehicle's future movement
+ObstaclePrediction[] predictions

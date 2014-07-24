@@ -42,6 +42,8 @@ add_message_files(
   TrafficLightStates.msg
   TrafficLightStateRequest.msg
 
+  MovingBox.msg
+  ObstaclePrediction.msg
   AnnotatedVehicle.msg
   AnnotatedVehicleArray.msg
 

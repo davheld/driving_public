@@ -78,7 +78,7 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::strin
     char space;
     std::stringstream ss(line);
 
-    ep_time = static_cast<double>(epoch_time) * 1e-9;
+    ep_time = static_cast<double>(epoch_time) * 1e-6;//* 1e-9;
     for(int i=0; i<25; i++){
         ss >> data[i];
     }
@@ -200,7 +200,7 @@ bool KittiVeloReader::next()
         }
 
         spin_.reset(new stdr_velodyne::PointCloud);
-        spin_->reserve(spin_->size() + num_points);
+        spin_->reserve(num_points);
 
         spin_->header.frame_id = "velodyne";
         spin_->header.seq = 14;
@@ -258,6 +258,9 @@ bool KittiVeloReader::next()
         ok_ = false;
         return ok_;
     }
+
+    ok_ = true;
+    return ok_;
 }
 
 }

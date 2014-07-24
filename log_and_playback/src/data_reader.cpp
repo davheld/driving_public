@@ -357,35 +357,33 @@ bool SpinReader::prevSpin()
 
 bool SpinReader::nextSpin()
 {
+  stdr_msgs::ApplanixPose::ConstPtr applanix;
+  stdr_velodyne::PointCloud::ConstPtr pcd;
+  velodyne_msgs::VelodyneScan::ConstPtr scans;
+
   stdr_velodyne::PointCloudPtr spin = processSpinQueue();
   while( !spin && ros::ok() )
   {
     if( !data_reader_->next() )
       return false;
 
-    stdr_msgs::ApplanixPose::ConstPtr applanix = data_reader_->instantiateApplanixPose();
-    if( applanix ) {
+    if( applanix = data_reader_->instantiateApplanixPose() ) {
       ROS_DEBUG("Adding applanix pose t=%.3f", applanix->header.stamp.toSec());
       tf_listener_.addApplanixPose(*applanix);
     }
-
-    stdr_velodyne::PointCloud::ConstPtr pcd = data_reader_->instantiateVelodyneSpin();
-    if( !pcd ) {
-      velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader_->instantiateVelodyneScans();
-      if( scans) {
-        ROS_DEBUG("got raw scan t=%.3f", scans->header.stamp.toSec());
-        BOOST_FOREACH(const velodyne_msgs::VelodynePacket & pkt, scans->packets) {
-          stdr_velodyne::PointCloud::Ptr pcd = boost::make_shared<stdr_velodyne::PointCloud>();
-          packet2pcd_convertor_.processPacket(pkt, *pcd);
-          std_msgs::Header h(scans->header);
-          h.stamp = pkt.stamp;
-          pcl_conversions::toPCL(h, pcd->header);
-          spinQ_.push(pcd);
-        }
-      }
+    else if( pcd = data_reader_->instantiateVelodyneSpin() ) {
+      spinQ_.push(pcd);
     }
-    else {
-        spinQ_.push(pcd);
+    else if( scans = data_reader_->instantiateVelodyneScans() ) {
+      ROS_DEBUG("got raw scan t=%.3f", scans->header.stamp.toSec());
+      BOOST_FOREACH(const velodyne_msgs::VelodynePacket & pkt, scans->packets) {
+        stdr_velodyne::PointCloud::Ptr pcd_ = boost::make_shared<stdr_velodyne::PointCloud>();
+        packet2pcd_convertor_.processPacket(pkt, *pcd_);
+        std_msgs::Header h(scans->header);
+        h.stamp = pkt.stamp;
+        pcl_conversions::toPCL(h, pcd_->header);
+        spinQ_.push(pcd_);
+      }
     }
 
     spin = processSpinQueue();

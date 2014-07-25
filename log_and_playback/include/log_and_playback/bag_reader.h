@@ -80,6 +80,9 @@ public:
   stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const
   { return bag_it_->instantiate<stdr_msgs::LadybugImages>(); }
 
+  stdr_msgs::LocalizePose::ConstPtr instantiateLocalizePose() const
+  { return bag_it_->instantiate<stdr_msgs::LocalizePose>(); }
+
 private:
   std::vector< boost::shared_ptr<rosbag::Bag> > bags_;
   boost::shared_ptr<rosbag::View> view_;

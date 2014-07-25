@@ -208,6 +208,11 @@ stdr_velodyne::PointCloud::ConstPtr DataReader::instantiateVelodyneSpin() const
   FUNC_BODY(stdr_velodyne::PointCloud, instantiateVelodyneSpin);
 }
 
+stdr_msgs::LocalizePose::ConstPtr DataReader::instantiateLocalizePose() const
+{
+  FUNC_BODY(stdr_msgs::LocalizePose, instantiateLocalizePose);
+}
+
 
 void BagTFListener::addApplanixPose(const stdr_msgs::ApplanixPose & pose)
 {
@@ -216,12 +221,27 @@ void BagTFListener::addApplanixPose(const stdr_msgs::ApplanixPose & pose)
   if( broadcast_ )
     app_trans_.broadcast(broadcaster_);
 
-  fake_localizer_.update(pose);
+  if( !from_localize_pose_ ) {
+    fake_localizer_.update(pose);
+    fake_localizer_.addToTransformer(*this, "bag");
+    if( broadcast_ )
+      fake_localizer_.broadcast(broadcaster_);
+  }
+
+  handleStaticTransforms(pose.header.stamp);
+}
+
+void BagTFListener::addLocalizePose(const stdr_msgs::LocalizePose & pose)
+{
+  if( !from_localize_pose_ ) {
+    // reset the localizer
+    fake_localizer_ = localize::FakeLocalizer();
+  }
+  from_localize_pose_ = true;
+  fake_localizer_.update_transforms(pose);
   fake_localizer_.addToTransformer(*this, "bag");
   if( broadcast_ )
     fake_localizer_.broadcast(broadcaster_);
-
-  handleStaticTransforms(pose.header.stamp);
 }
 
 void BagTFListener::addTFMsg(const tf::tfMessage & msg)
@@ -358,6 +378,7 @@ bool SpinReader::prevSpin()
 bool SpinReader::nextSpin()
 {
   stdr_msgs::ApplanixPose::ConstPtr applanix;
+  stdr_msgs::LocalizePose::ConstPtr localize_pose;
   stdr_velodyne::PointCloud::ConstPtr pcd;
   velodyne_msgs::VelodyneScan::ConstPtr scans;
 
@@ -370,6 +391,9 @@ bool SpinReader::nextSpin()
     if( applanix = data_reader_->instantiateApplanixPose() ) {
       ROS_DEBUG("Adding applanix pose t=%.3f", applanix->header.stamp.toSec());
       tf_listener_.addApplanixPose(*applanix);
+    }
+    else if( localize_pose = data_reader_->instantiateLocalizePose() ) {
+      tf_listener_.addLocalizePose(*localize_pose);
     }
     else if( pcd = data_reader_->instantiateVelodyneSpin() ) {
       spinQ_.push(pcd);

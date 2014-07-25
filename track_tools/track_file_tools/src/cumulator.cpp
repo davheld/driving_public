@@ -37,7 +37,7 @@
 
 
 
-/** This program takes a tm file as input, a
+/** This program takes a trk file (see track_file_io) as input, a
   * track number, and will cumulate all the frames for that track into one
   * single point cloud.
   *

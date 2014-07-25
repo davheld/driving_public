@@ -10,6 +10,15 @@
 using namespace std;
 using namespace boost;
 
+/***
+  This File Converts the Imu data folder(oxts) from the Kitti dataset into
+  a single file (.imu) that can be used for future calls to SpinReader.
+
+  Input:
+ (path/oxts) the OXTS Folder of Kitti Data
+ (intendedfilename.imu) Intended File name of new data
+
+ ***/
 
 int main(int argc, char *argv[]){
 

@@ -1,4 +1,3 @@
-#include "log_and_playback/imu_kitti.h"
 #include <iostream>
 #include <boost/filesystem.hpp>
 #include "boost/filesystem/fstream.hpp"

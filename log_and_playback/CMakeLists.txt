@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(log_and_playback)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
-find_package(catkin REQUIRED COMPONENTS 
+find_package(catkin REQUIRED COMPONENTS
   roscpp stdr_msgs stdr_lib blf dgc_transform localize stdr_velodyne ladybug_playback
 )
 
@@ -28,7 +28,6 @@ add_library(${PROJECT_NAME}
   src/data_reader.cpp
   src/kittireader.cpp
   src/imu_kitti.cpp
-  src/sample_imu_reader.cpp
 
   include/log_and_playback/abstract_data_reader.h
   include/log_and_playback/bag_reader.h
@@ -36,7 +35,6 @@ add_library(${PROJECT_NAME}
   include/log_and_playback/dgclog_reader.h
   include/log_and_playback/dgclogio.h
   include/log_and_playback/kittireader.h
-  include/log_and_playback/imu_kitti.h
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
@@ -59,7 +57,4 @@ target_link_libraries(bag2dgc ${PROJECT_NAME})
 
 add_executable(imukitti src/imu_kitti.cpp)
 target_link_libraries(imukitti ${PROJECT_NAME})
-
-add_executable(sample_imu src/sample_imu_reader.cpp)
-target_link_libraries(sample_imu ${PROJECT_NAME})
 

@@ -56,213 +56,213 @@ namespace log_and_playback
 void KittiApplanixReader::open(const std::string & filename)
 {
 
-    file_.open(filename.c_str(), std::ios_base::in);
-    stream_.push(file_);
-    ok_ = true;
-    old_hw_timestamp_ = 0;
+  file_.open(filename.c_str(), std::ios_base::in);
+  stream_.push(file_);
+  ok_ = true;
+  old_hw_timestamp_ = 0;
 }
 
 
 KittiApplanixReader::~KittiApplanixReader(){
-    close();
+  close();
 }
 
 void KittiApplanixReader::close(){
-    file_.close();
+  file_.close();
 }
 
 stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::string & line){
-    uint64_t epoch_time;
-    double ep_time;
-    double data[25];
-    char space;
-    std::stringstream ss(line);
+  uint64_t epoch_time;
+  double ep_time;
+  double data[25];
+  char space;
+  std::stringstream ss(line);
 
-    ss >> epoch_time;
+  ss >> epoch_time;
 
-    ep_time = static_cast<double>(epoch_time) * 1e-9;//* 1e-9;
-    for(int i=0; i<25; i++){
-        ss >> data[i];
-    }
+  ep_time = static_cast<double>(epoch_time) * 1e-9;//* 1e-9;
+  for(int i=0; i<25; i++){
+    ss >> data[i];
+  }
 
-    stdr_msgs::ApplanixPose::Ptr pose( new stdr_msgs::ApplanixPose );
-    pose->latitude = data[0];
-    pose->longitude = data[1];
-    pose->altitude = data[2];
-    pose->roll = data[3];
-    pose->pitch = data[4];
-    pose->yaw = data[5];
-    pose->vel_north = (float)(data[6]);
-    pose->vel_east = (float)(data[7]);
-    pose->vel_up = (float) (data[10]);
-    pose->rate_roll = data[17];
-    pose->rate_pitch = data[18];
-    pose->rate_yaw = data[19];
-    pose->accel_x = data[11];
-    pose->accel_y = data[12];
-    pose->accel_z = data[13];
-    pose->wander =0;
-    pose->id = 0;
-    pose->speed = (float)(sqrt(pose->vel_north * pose->vel_north
-                               + pose->vel_east * pose->vel_east));
-    pose->track = (float)(atan2(pose->vel_north, pose->vel_east));
+  stdr_msgs::ApplanixPose::Ptr pose( new stdr_msgs::ApplanixPose );
+  pose->latitude = data[0];
+  pose->longitude = data[1];
+  pose->altitude = data[2];
+  pose->roll = data[3];
+  pose->pitch = data[4];
+  pose->yaw = data[5];
+  pose->vel_north = (float)(data[6]);
+  pose->vel_east = (float)(data[7]);
+  pose->vel_up = (float) (data[10]);
+  pose->rate_roll = data[17];
+  pose->rate_pitch = data[18];
+  pose->rate_yaw = data[19];
+  pose->accel_x = data[11];
+  pose->accel_y = data[12];
+  pose->accel_z = data[13];
+  pose->wander =0;
+  pose->id = 0;
+  pose->speed = (float)(sqrt(pose->vel_north * pose->vel_north
+                             + pose->vel_east * pose->vel_east));
+  pose->track = (float)(atan2(pose->vel_north, pose->vel_east));
 
-    if (old_hw_timestamp_ !=0){
-        double dt = ep_time - old_hw_timestamp_;
-        pose->smooth_x += pose->vel_east * dt;
-        pose->smooth_y += pose->vel_north * dt;
-        pose->smooth_z += pose->vel_up * dt;
+  if (old_hw_timestamp_ !=0){
+    double dt = ep_time - old_hw_timestamp_;
+    pose->smooth_x += pose->vel_east * dt;
+    pose->smooth_y += pose->vel_north * dt;
+    pose->smooth_z += pose->vel_up * dt;
 
-    }else{
-        pose->smooth_x = 0;
-        pose->smooth_y = 0;
-        pose->smooth_z = 0;
-    }
-    old_hw_timestamp_ = ep_time;
-    pose->hardware_timestamp = ep_time;
-    time_ = ros::Time(ep_time);
-    pose->header.stamp = time_;
-    return pose;
+  }else{
+    pose->smooth_x = 0;
+    pose->smooth_y = 0;
+    pose->smooth_z = 0;
+  }
+  old_hw_timestamp_ = ep_time;
+  pose->hardware_timestamp = ep_time;
+  time_ = ros::Time(ep_time);
+  pose->header.stamp = time_;
+  return pose;
 }
 
 bool KittiApplanixReader::next(){
-    pose_.reset();
+  pose_.reset();
 
-    while( true )
-    {
-        if( ok_ && std::getline(stream_, line_) ) {
-            pose_ = parseApplanix(line_);
-            if( pose_ ) {
-                time_ = pose_->header.stamp;
-                return true;
-            }
-        }
-        else {
-            ok_ = false;
-            return ok_;
-        }
+  while( true )
+  {
+    if( ok_ && std::getline(stream_, line_) ) {
+      pose_ = parseApplanix(line_);
+      if( pose_ ) {
+        time_ = pose_->header.stamp;
+        return true;
+      }
     }
+    else {
+      ok_ = false;
+      return ok_;
+    }
+  }
 
-    return ok_;
-    return false;
+  return ok_;
+  return false;
 }
 
 stdr_msgs::ApplanixPose::ConstPtr
 KittiApplanixReader::instantiateApplanixPose() const
 {
-    return pose_;
+  return pose_;
 }
 
 
 
 KittiVeloReader::~KittiVeloReader()
 {
-    close();
+  close();
 }
 
 KittiVeloReader::KittiVeloReader(){
-    config_ = stdr_velodyne::Configuration::getStaticConfigurationInstance();
-    ok_ = false;
-    spin_ = boost::make_shared<stdr_velodyne::PointCloud>();
+  config_ = stdr_velodyne::Configuration::getStaticConfigurationInstance();
+  ok_ = false;
+  spin_ = boost::make_shared<stdr_velodyne::PointCloud>();
 }
 
 void KittiVeloReader::open(const std::string & filename)
 {
-    vfile_.open(filename.c_str());
-    ok_ = true;
-    config_ = stdr_velodyne::Configuration::getStaticConfigurationInstance();
-    ROS_ASSERT(config_);
+  vfile_.open(filename.c_str());
+  ok_ = true;
+  config_ = stdr_velodyne::Configuration::getStaticConfigurationInstance();
+  ROS_ASSERT(config_);
 }
 
 void KittiVeloReader::close()
 {
-    vfile_.close();
-    ok_ = false;
+  vfile_.close();
+  ok_ = false;
 }
 
 bool KittiVeloReader::next()
 {
 
-    ROS_ASSERT(config_);
+  ROS_ASSERT(config_);
 
-    if( !vfile_ && vfile_.good())
-        return false;
+  if( !vfile_ && vfile_.good())
+    return false;
 
-    unsigned int num_points;
-    uint64_t t_start, t_end;
+  unsigned int num_points;
+  uint64_t t_start, t_end;
 
-    try {
-        vfile_.read((char *)(&num_points), sizeof(num_points));
-        vfile_.read((char *)(&t_start), sizeof(t_start));
-        vfile_.read((char *)(&t_end), sizeof(t_end));
+  try {
+    vfile_.read((char *)(&num_points), sizeof(num_points));
+    vfile_.read((char *)(&t_start), sizeof(t_start));
+    vfile_.read((char *)(&t_end), sizeof(t_end));
 
-        if(!vfile_.good()){
-            ok_ = false;
-            return ok_;
-        }
-
-        spin_.reset(new stdr_velodyne::PointCloud);
-        spin_->reserve(num_points);
-
-        spin_->header.frame_id = "velodyne";
-        spin_->header.seq = 14;
-
-        spin_->header.stamp = t_start;
-        // Recent Additions
-        time_ =ros::Time(t_start *1E-6);
-        stdr_velodyne::PointType pt;
-
-        float x,y,z;
-        float intensity;
-        float distance;
-        float h_angle, v_angle;
-        double timestamp;
-        uint8_t beam_id, beam_nb;
-        uint16_t encoder;
-        uint32_t rgb;
-
-        for( int i =0; i< num_points; i++){
-
-            // load point info from .kit file
-            vfile_.read((char *)(&x), sizeof(x));
-            vfile_.read((char *)(&y), sizeof(y));
-            vfile_.read((char *)(&z), sizeof(z));
-            vfile_.read((char *)(&intensity), sizeof(intensity));
-            vfile_.read((char *)(&h_angle), sizeof(h_angle));
-            vfile_.read((char *)(&beam_id), sizeof(beam_id));
-            vfile_.read((char *)(&distance), sizeof(distance));
-
-            // load configuration data
-            ROS_ASSERT(config_);
-
-            const stdr_velodyne::RingConfig & rcfg = config_->getRingConfig(beam_id);
-            v_angle = rcfg.vert_angle_.getRads();
-            beam_nb = config_->getBeamNumber(beam_id);
-            encoder = (uint16_t)(h_angle* 100);
-
-            // update point data
-            pt.x = x;
-            pt.y = y;
-            pt.z = z;
-            pt.intensity = intensity;
-            pt.h_angle = h_angle;
-            pt.encoder = encoder;
-            pt.v_angle = v_angle;
-            pt.beam_id = beam_id -1 ;
-            pt.beam_nb = beam_id - 1;//beam_nb;
-            pt.timestamp = static_cast<double>(t_start) * 1e-6;
-            pt.distance = distance;
-            // add to pointcloud
-            spin_->push_back(pt);
-        }
-
-    }catch (stdr::ex::IOError& e) {
-        ok_ = false;
-        return ok_;
+    if(!vfile_.good()){
+      ok_ = false;
+      return ok_;
     }
 
-    ok_ = true;
+    spin_.reset(new stdr_velodyne::PointCloud);
+    spin_->reserve(num_points);
+
+    spin_->header.frame_id = "velodyne";
+    spin_->header.seq = 14;
+
+    spin_->header.stamp = t_start;
+    // Recent Additions
+    time_ =ros::Time(t_start *1E-6);
+    stdr_velodyne::PointType pt;
+
+    float x,y,z;
+    float intensity;
+    float distance;
+    float h_angle, v_angle;
+    double timestamp;
+    uint8_t beam_id, beam_nb;
+    uint16_t encoder;
+    uint32_t rgb;
+
+    for( int i =0; i< num_points; i++){
+
+      // load point info from .kit file
+      vfile_.read((char *)(&x), sizeof(x));
+      vfile_.read((char *)(&y), sizeof(y));
+      vfile_.read((char *)(&z), sizeof(z));
+      vfile_.read((char *)(&intensity), sizeof(intensity));
+      vfile_.read((char *)(&h_angle), sizeof(h_angle));
+      vfile_.read((char *)(&beam_id), sizeof(beam_id));
+      vfile_.read((char *)(&distance), sizeof(distance));
+
+      // load configuration data
+      ROS_ASSERT(config_);
+
+      const stdr_velodyne::RingConfig & rcfg = config_->getRingConfig(beam_id);
+      v_angle = rcfg.vert_angle_.getRads();
+      beam_nb = config_->getBeamNumber(beam_id);
+      encoder = (uint16_t)(h_angle* 100);
+
+      // update point data
+      pt.x = x;
+      pt.y = y;
+      pt.z = z;
+      pt.intensity = intensity;
+      pt.h_angle = h_angle;
+      pt.encoder = encoder;
+      pt.v_angle = v_angle;
+      pt.beam_id = beam_id -1 ;
+      pt.beam_nb = beam_id - 1;//beam_nb;
+      pt.timestamp = static_cast<double>(t_start) * 1e-6;
+      pt.distance = distance;
+      // add to pointcloud
+      spin_->push_back(pt);
+    }
+
+  }catch (stdr::ex::IOError& e) {
+    ok_ = false;
     return ok_;
+  }
+
+  ok_ = true;
+  return ok_;
 }
 
 }

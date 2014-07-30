@@ -45,7 +45,9 @@
 #include <stdr_msgs/ApplanixGPS.h>
 #include <stdr_msgs/ApplanixDMI.h>
 #include <stdr_msgs/ApplanixRMS.h>
+#include <stdr_msgs/LocalizePose.h>
 #include <stdr_msgs/LadybugImages.h>
+#include <stdr_velodyne/point_type.h>
 
 
 namespace log_and_playback
@@ -75,8 +77,14 @@ public:
   virtual velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const
   { return velodyne_msgs::VelodyneScan::ConstPtr(); }
 
+  virtual stdr_velodyne::PointCloud::ConstPtr instantiateVelodyneSpin() const
+  { return stdr_velodyne::PointCloud::ConstPtr(); }
+
   virtual stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const
   { return stdr_msgs::LadybugImages::ConstPtr(); }
+
+  virtual stdr_msgs::LocalizePose::ConstPtr instantiateLocalizePose() const
+  { return stdr_msgs::LocalizePose::ConstPtr(); }
 };
 
 

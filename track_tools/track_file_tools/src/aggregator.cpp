@@ -36,7 +36,7 @@
  ********************************************************/
 
 
-/** This program takes a trk file as input and
+/** This program takes a trk file as input (see track_file_io) and
   * aggregates all the tracks in one single track with a large point cloud.
   *
   * This is basically abusing the trk format, but it allows to get a larger

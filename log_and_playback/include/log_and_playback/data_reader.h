@@ -48,6 +48,7 @@
 #include <log_and_playback/abstract_data_reader.h>
 #include <log_and_playback/bag_reader.h>
 #include <log_and_playback/dgclog_reader.h>
+#include <log_and_playback/kittireader.h>
 
 #include <stdr_velodyne/message_filter.h>
 #include <stdr_velodyne/pointcloud.h>
@@ -71,7 +72,9 @@ public:
   stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
   stdr_msgs::ApplanixRMS::ConstPtr instantiateApplanixRMS() const;
   velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const;
+  stdr_velodyne::PointCloud::ConstPtr instantiateVelodyneSpin() const;
   stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const;
+  stdr_msgs::LocalizePose::ConstPtr instantiateLocalizePose() const;
 
 private:
   std::vector< boost::shared_ptr<AbstractDataReader> > readers_;
@@ -82,16 +85,27 @@ private:
 
 /** A TransformListener that is convenient to use with bags.
  *
- * The TF tree can be updated directly from ApplanixPose messages, and static
- * transforms can be added to it.
+ * The TF tree can be updated directly from ApplanixPose/LocalizePose messages,
+ * and static transforms can be added to it.
+ *
+ * Considering the global frame transforms ("utm" -> "local_utm" -> "smooth"):
+ * - initially those are updated from the ApplanixPose using the fake localizer,
+ *   unless useLocalizePose() was called.
+ * - when a LocalizePose message is added (addLocalizePose), the localizer is
+ *   reset and the global transforms are subsequently updated from the
+ *   LocalizePose messages only.
+ * This allows to conditionally work with LocalizePose messages, when not sure
+ * whether they will be available.
  */
 class BagTFListener : public tf::TransformerHelper
 {
 public:
-  BagTFListener() : broadcast_(false) {}
+  BagTFListener() : broadcast_(false), from_localize_pose_(false) {}
   void broadcast() { broadcast_ = true; }
+  void useLocalizePose() { from_localize_pose_ = true; }
 
   void addApplanixPose(const stdr_msgs::ApplanixPose &);
+  void addLocalizePose(const stdr_msgs::LocalizePose &);
   void addTFMsg(const tf::tfMessage & msg);
 
   /// Adds a static transform to the tree. Time stamp is irrelevant.
@@ -101,7 +115,7 @@ public:
 
 private:
   std::vector< tf::StampedTransform > static_transforms_;
-  bool broadcast_;
+  bool broadcast_, from_localize_pose_;
   tf::TransformBroadcaster broadcaster_;
   localize::ApplanixTransformer app_trans_;
   localize::FakeLocalizer fake_localizer_;

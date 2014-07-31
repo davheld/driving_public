@@ -20,31 +20,31 @@ import datetime
 # parameter name of the config files to save
 config_files_param = (
   '/driving/velodyne/cal_file',
-  '/driving/velodyne/ext_file', 
+  '/driving/velodyne/ext_file',
   '/driving/velodyne/int_file',
   '/driving/fleaL/transform',
-  '/driving/fleaR/transform'
+  '/driving/grasshopperR/transform'
 )
 
 vlftopics = ["/driving/velodyne/packets"]
-applanixtopics = ["/driving/ApplanixPose", "/driving/ApplanixGPS", 
+applanixtopics = ["/driving/ApplanixPose", "/driving/ApplanixGPS",
   "/driving/ApplanixRMS", "/driving/ApplanixDMI"]
-cameratopics = ["/driving/ladybug/images", "/driving/fleaL/image_raw", 
-  "/driving/fleaL/camera_info", "/driving/fleaR/image_raw", 
-  "/driving/fleaR/camera_info"]
-topicstoskip = ["/driving/velodyne/points", "/driving/velodyne/colored", 
-  "/driving/velodyne/points_agg", "/driving/velodyne/raw_scans", 
-  "/driving/smooth", "/tf", "/driving/trajectories", 
+cameratopics = ["/driving/ladybug/images", "/driving/fleaL/image_raw",
+  "/driving/fleaL/camera_info", "/driving/grasshopperR/image_raw",
+  "/driving/grasshopperR/camera_info"]
+topicstoskip = ["/driving/velodyne/points", "/driving/velodyne/colored",
+  "/driving/velodyne/points_agg", "/driving/velodyne/raw_scans",
+  "/driving/smooth", "/tf", "/driving/trajectories",
   "/driving/perception/classification_result", "/driving/perception_velodyne"]
 
 def skip_topic(t):
   if t.startswith("/driving/ladybug/") or t.startswith("/driving/fleaL") or \
-    t.startswith("/driving/fleaR") or t.endswith("/bond") or \
+    t.startswith("/driving/grasshopperR") or t.endswith("/bond") or \
     t.endswith("/parameter_descriptions") or t.endswith("/parameter_updates"):
     return True
   return False
 
-      
+
 # ---------------------------------------------------------------------------
 
 
@@ -61,7 +61,7 @@ if not os.path.exists(sys.argv[1]):
 else:
   subprocess.call("".join(("rm -rf ", sys.argv[1], "/tmplog*")), shell=True)
 
-  
+
 # ---------------------------------------------------------------------------
 
 
@@ -92,7 +92,11 @@ def get_param(name):
 # name after the parameter name, replacing slashes by __
 # and keep the original extension.
 for p in config_files_param:
-  cfg_file = get_param(p)
+  try:
+    cfg_file = get_param(p)
+  except KeyError:
+    rospy.logwarn("Failed to get param " + p)
+    continue
   ext = os.path.splitext(cfg_file)[1]
   basename = '__'.join(p.strip('/').split('/'))
   tar.add(cfg_file, arcname=basename+ext)
@@ -138,16 +142,16 @@ def rename_bag_files(name):
         active = True
     if active:
       time.sleep(1)
-        
+
   files = os.listdir(sys.argv[1])
   for f in files:
     if f.startswith("tmplog") and (f.endswith('bag') or f.endswith('tar.gz')):
       s = sys.argv[1] + "/" + f
       d = sys.argv[1] + "/" + name + '-' + datestmp + f[6:]
       os.rename(s,d)
-    
 
-      
+
+
 def exithandler(signum, frame):
   for logger in loggers:
     if logger.returncode == None:

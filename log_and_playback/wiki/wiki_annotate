@@ -1,0 +1,141 @@
+#!/usr/bin/env python
+#
+# read a log file, find instances where the estop was used, and
+# seed a corresponding wiki page appropriately
+#  ... or something like that
+#
+# This will help us provide the reports required by the new laws:
+# autonomous_regulation.pdf , section 227.46:
+#
+# (a) Upon receipt of a Manufacturer's Testing Permit, a manufacturer shall
+#     commence retaining data related to the disengagement of the autonomous
+#     mode. For the purposes of this section, "disengagement" means a
+#     deactivation of the autonomous mode when a failure of the autonomous
+#     technology is detected or when the safe operation of the vehicle requires
+#     that the autonomous vehicle test driver disengage the autonomous mode and
+#     take immediate manual control of the vehicle.
+# (b) Every manufacturer authorized under this article to test autonomous
+#     vehicles on public roads shall prepare and submit to the department an
+#     annual report summarizing the information compiled pursuant to
+#     subdivision (a) by January 1st, of each year.
+#  (1) The first report shall cover the period from the date of issuance of the
+#      Manufacturer's Testing Permit to November 30th of the following year.
+#  (2) After the first report, subsequent annual reports shall cover the period
+#      December 1st of the current year to November 30th of the following year.
+#  (3) The annual report shall summarize disengagements for each month as
+#      follows:
+#   (A) The total number of autonomous mode disengagements and the
+#       circumstances or testing conditions at the time of the disengagements
+#       including:
+#    (i)  The location: interstate, freeway, highway, rural road, street, or
+#         parking facility.
+#    (ii) A description of the facts causing the disengagements, including:
+#         weather conditions, road surface conditions, construction,
+#         emergencies, accidents or collisions, and whether the disengagement
+#         was the result of a planned test of the autonomous technology.
+#   (B) The total number of miles each autonomous vehicle tested in autonomous
+#       mode on public roads each month.
+#   (C) The period of time elapsed from when the autonomous vehicle test driver
+#       was alerted of the technology failure and the driver assumed manual
+#       control of the vehicle.
+#  
+# See: https://github.com/StanfordDrivingTeam/driving/issues/66
+#
+#
+# This tool is limited to collecting data at the time of an incident
+#  - there will be a separate tool to assemble the collected logs and
+#    other data for annual reports to the DMV
+# We need to collect:
+#  - The location (a.3.A.i) - we can probably default this to "street"
+#  - The "facts" (a.3.A.ii) - why the driver disengaged the system, planned or 
+#                             unplanned
+#  - Time between alert of failure and disengagement of system (a.3.C)
+#
+# Once we've extracted the relevant data from the log file, create a temporary
+#  file and open $EDITOR (or gedit) so that the user can add notes
+# When the user has saved the temporary file and closed the editor, append
+#  the temporary file content to the relevant wiki page and commit it
+
+from __future__ import print_function
+
+import argparse
+import os
+import sys
+import time
+
+import rosbag
+from stdr_msgs.msg import EStopStatus
+
+ESTOP_TOPIC="/driving/EStopStatus"
+OUTFILENAME="out.md"
+
+LOGFILE_TEMPLATE="""
+### Log File: {logfile}
+"""
+INCIDENT_TEMPLATE="""
+  * INTERVENTION {time}
+    * EStop was pressed because 
+"""
+ADDITIONAL_TEMPLATE="""
+  * Additional Notes
+    * none
+"""
+
+COMMIT_TEMPLATE="TODO: commit message template"
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('bagfiles', nargs="+")
+    args = parser.parse_args()
+
+    # TODO: temporary file name
+    if os.path.exists(OUTFILENAME):
+        print("ERROR: output file already exists")
+        sys.exit(1)
+    outfile = open(OUTFILENAME, "w")
+
+    for bagfile in args.bagfiles:
+        if bagfile.endswith('.bag'):
+            print("Annotating log file", bagfile)
+        else:
+            print("%s does not appear to be a bag file; skipping" % (bagfile))
+            continue
+
+        bag = rosbag.Bag(bagfile)
+        estop_state = 0
+        interventions = []
+        last_t = 0
+        for topic, msg, t in bag.read_messages(topics=[ESTOP_TOPIC]):
+            last_t = t
+            if estop_state != msg.estop_code:
+                # check for intervention event (estop from run to pause)
+                if estop_state == EStopStatus.ESTOP_RUN and msg.estop_code == EStopStatus.ESTOP_PAUSE:
+                    interventions.append((t,False))
+                estop_state = msg.estop_code
+        bag.close()
+        # if the bagfile ends with the estop enabled, assume an intervention
+        if estop_state == EStopStatus.ESTOP_RUN:
+            interventions.append((last_t,True))
+            print("WARNING: estop still in RUN mode at end of log file")
+
+        # write file
+        shortname = bagfile.rpartition('.')[0]
+        outfile.write(LOGFILE_TEMPLATE.format(logfile=shortname))
+
+        if len(interventions) > 0:
+            for t in interventions:
+                localtime = time.localtime(t[0].to_sec())
+                str_time = time.strftime("%Y-%m-%d at %H:%M:%S", localtime)
+                print("Intervention event on", str_time)
+                outfile.write(INCIDENT_TEMPLATE.format(time=str_time))
+        else:
+            print("No Interventions!")
+        outfile.write(ADDITIONAL_TEMPLATE)
+    outfile.close()
+    # TODO: invoke editor, wait for user to edit
+
+    # TODO: commit to repository
+
+if __name__ == '__main__':
+    main()
+

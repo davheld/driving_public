@@ -62,20 +62,20 @@ import argparse
 import os
 import sys
 import time
+import tempfile
+import subprocess
 
 import rosbag
 from stdr_msgs.msg import EStopStatus
 
 ESTOP_TOPIC="/driving/EStopStatus"
-OUTFILENAME="out.md"
 
 LOGFILE_TEMPLATE="""
 ### Log File: {logfile}
 """
 INCIDENT_TEMPLATE="""
   * INTERVENTION {time}
-    * EStop was pressed because 
-"""
+    * EStop was pressed because"""
 ADDITIONAL_TEMPLATE="""
   * Additional Notes
     * none
@@ -88,11 +88,7 @@ def main():
     parser.add_argument('bagfiles', nargs="+")
     args = parser.parse_args()
 
-    # TODO: temporary file name
-    if os.path.exists(OUTFILENAME):
-        print("ERROR: output file already exists")
-        sys.exit(1)
-    outfile = open(OUTFILENAME, "w")
+    outfile = tempfile.NamedTemporaryFile(mode="w", delete=False)
 
     for bagfile in args.bagfiles:
         if bagfile.endswith('.bag'):
@@ -132,9 +128,15 @@ def main():
             print("No Interventions!")
         outfile.write(ADDITIONAL_TEMPLATE)
     outfile.close()
-    # TODO: invoke editor, wait for user to edit
+
+    # invoke editor, wait for user to edit
+    editor = os.getenv('EDITOR', 'gedit')
+    subprocess.call([editor, outfile.name])
 
     # TODO: commit to repository
+    #os.remove(outfile.name)
+    # for now, just hack to moving the temporary file into the working directory
+    subprocess.call(['mv', outfile.name, "out.md"]) #HACK
 
 if __name__ == '__main__':
     main()

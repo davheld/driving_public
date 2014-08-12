@@ -1,1 +1,7 @@
 #!/usr/bin/env python
+
+import wiki_util
+
+if __name__ == '__main__':
+    wiki_util.update()
+    wiki_util.push()

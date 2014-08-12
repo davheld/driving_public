@@ -146,8 +146,8 @@ def rename_bag_files(name):
   files = os.listdir(sys.argv[1])
   for f in files:
     if f.startswith("tmplog") and (f.endswith('bag') or f.endswith('tar.gz')):
-      s = sys.argv[1] + "/" + f
-      d = sys.argv[1] + "/" + name + '-' + datestmp + f[6:]
+      s = os.path.join(sys.argv[1], f)
+      d = os.path.join(sys.argv[1], name + '-' + datestmp + f[6:])
       os.rename(s,d)
 
 
@@ -165,6 +165,8 @@ def exithandler(signum, frame):
       name = None
   if name != "":
     rename_bag_files(name)
+    generalbag = os.path.join(sys.argv[1], "%s-%s.bag" % (name, datestmp))
+    subprocess.call(['rosrun', 'log_and_playback', 'wiki_annotate', generalbag])
   sys.exit(0)
   return
 

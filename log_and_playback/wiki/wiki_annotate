@@ -65,6 +65,7 @@ import time
 import tempfile
 import subprocess
 
+import rospy
 import rosbag
 from stdr_msgs.msg import EStopStatus
 
@@ -103,9 +104,11 @@ def main():
             continue
 
         bag = rosbag.Bag(bagfile)
+        bagtime = float(bag._get_yaml_info('start'))
+
         estop_state = 0
         bag_interventions = []
-        last_t = 0
+        last_t = rospy.Time(0)
         for topic, msg, t in bag.read_messages(topics=[ESTOP_TOPIC]):
             last_t = t
             if estop_state != msg.estop_code:
@@ -120,8 +123,7 @@ def main():
             print("WARNING: estop still in RUN mode at end of log file")
 
         shortname = bagfile.rpartition('.')[0]
-        year_month_day = time.strftime("%Y-%m-%d", time.localtime(
-            last_t.to_sec()))
+        year_month_day = time.strftime("%Y-%m-%d", time.localtime(bagtime))
 
         if not year_month_day in interventions:
             interventions[year_month_day] = [] 

@@ -16,6 +16,16 @@ def get_dir():
     """Get the location of the local checkout of the wiki"""
     return os.path.join(rospkg.get_ros_home(), "driving_wiki")
 
+def ensure():
+    """Make sure that the wiki is checked out locally"""
+    d = get_dir()
+
+    # if our directory doesn't exist, clone it
+    if not os.path.exists(d):
+        do_cmd(['git', 'clone', WIKI_URI, d], "Unable to checkout driving wiki")
+    # directory exists; we're done
+    return True
+
 def update():
     """Do a pull --rebase to update to the latest version of the wiki
     This will also do a checkout if necessary
@@ -24,7 +34,7 @@ def update():
 
     # if our directory doesn't exist, clone it
     if not os.path.exists(d):
-        do_cmd(['git', 'clone', WIKI_URI, d], "unable to checkout driving wiki")
+        do_cmd(['git', 'clone', WIKI_URI, d], "Unable to checkout driving wiki")
         # we did a clean checkout. we're done
         return
     if not os.path.isdir(d):

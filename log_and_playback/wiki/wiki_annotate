@@ -68,6 +68,8 @@ import subprocess
 import rosbag
 from stdr_msgs.msg import EStopStatus
 
+import wiki_util
+
 ESTOP_TOPIC="/driving/EStopStatus"
 
 LOGFILE_TEMPLATE="""
@@ -76,19 +78,22 @@ LOGFILE_TEMPLATE="""
 INCIDENT_TEMPLATE="""
   * INTERVENTION {time}
     * EStop was pressed because"""
+STILL_RUNNING_TEMPLATE="""
+    * (autonomous mode was still active at end of log file)"""
 ADDITIONAL_TEMPLATE="""
   * Additional Notes
     * none
 """
 
-COMMIT_TEMPLATE="TODO: commit message template"
+COMMIT_TEMPLATE="Automatic wiki update"
 
 def main():
+    wiki_util.ensure()
     parser = argparse.ArgumentParser()
     parser.add_argument('bagfiles', nargs="+")
     args = parser.parse_args()
 
-    outfile = tempfile.NamedTemporaryFile(mode="w", delete=False)
+    interventions = {} # dict by day, then by logfile
 
     for bagfile in args.bagfiles:
         if bagfile.endswith('.bag'):
@@ -99,44 +104,70 @@ def main():
 
         bag = rosbag.Bag(bagfile)
         estop_state = 0
-        interventions = []
+        bag_interventions = []
         last_t = 0
         for topic, msg, t in bag.read_messages(topics=[ESTOP_TOPIC]):
             last_t = t
             if estop_state != msg.estop_code:
                 # check for intervention event (estop from run to pause)
                 if estop_state == EStopStatus.ESTOP_RUN and msg.estop_code == EStopStatus.ESTOP_PAUSE:
-                    interventions.append((t,False))
+                    bag_interventions.append((t,False))
                 estop_state = msg.estop_code
         bag.close()
         # if the bagfile ends with the estop enabled, assume an intervention
         if estop_state == EStopStatus.ESTOP_RUN:
-            interventions.append((last_t,True))
+            bag_interventions.append((last_t,True))
             print("WARNING: estop still in RUN mode at end of log file")
 
-        # write file
         shortname = bagfile.rpartition('.')[0]
-        outfile.write(LOGFILE_TEMPLATE.format(logfile=shortname))
+        year_month_day = time.strftime("%Y-%m-%d", time.localtime(
+            last_t.to_sec()))
 
-        if len(interventions) > 0:
-            for t in interventions:
-                localtime = time.localtime(t[0].to_sec())
-                str_time = time.strftime("%Y-%m-%d at %H:%M:%S", localtime)
-                print("Intervention event on", str_time)
-                outfile.write(INCIDENT_TEMPLATE.format(time=str_time))
-        else:
-            print("No Interventions!")
-        outfile.write(ADDITIONAL_TEMPLATE)
-    outfile.close()
+        if not year_month_day in interventions:
+            interventions[year_month_day] = [] 
+        interventions[year_month_day].append((shortname, bag_interventions))
 
-    # invoke editor, wait for user to edit
-    editor = os.getenv('EDITOR', 'gedit')
-    subprocess.call([editor, outfile.name])
+    for year_month_day in interventions:
+        outfile = tempfile.NamedTemporaryFile(mode="w", delete=False)
 
-    # TODO: commit to repository
-    #os.remove(outfile.name)
-    # for now, just hack to moving the temporary file into the working directory
-    subprocess.call(['mv', outfile.name, "out.md"]) #HACK
+        for shortname, bag_interventions in interventions[year_month_day]:
+            outfile.write(LOGFILE_TEMPLATE.format(logfile=shortname))
+
+            if len(bag_interventions) > 0:
+                for t in bag_interventions:
+                    localtime = time.localtime(t[0].to_sec())
+                    str_time = time.strftime("%Y-%m-%d at %H:%M:%S", localtime)
+                    print("Intervention event on", str_time)
+                    outfile.write(INCIDENT_TEMPLATE.format(time=str_time))
+                    if t[1]:
+                        outfile.write(STILL_RUNNING_TEMPLATE)
+            else:
+                print("No Interventions!")
+            outfile.write(ADDITIONAL_TEMPLATE)
+        outfile.close()
+
+        # invoke editor, wait for user to edit
+        editor = os.getenv('EDITOR', 'gedit')
+        subprocess.call([editor, outfile.name])
+
+        # commit to repository
+        wiki_entry = os.path.join('testing_notes', "%s.md" % (year_month_day) )
+        print("Creating wiki entry:", wiki_entry)
+        wiki_path = os.path.join(wiki_util.get_dir(), wiki_entry)
+
+        # create or append to wiki entry
+        #  TODO: do some parsing to determine if we've already added entries
+        #        for these log files to the wiki
+        with open(wiki_path, "a") as wiki_file:
+            with open(outfile.name, "r") as temp:
+                for line in temp:
+                    wiki_file.write(line)
+
+        wiki_util.add(wiki_entry)
+        wiki_util.commit(COMMIT_TEMPLATE)
+
+        # remove temporary file
+        os.remove(outfile.name)
 
 if __name__ == '__main__':
     main()

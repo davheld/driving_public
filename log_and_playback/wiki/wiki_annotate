@@ -153,7 +153,7 @@ def main():
         subprocess.call([editor, outfile.name])
 
         # commit to repository
-        wiki_entry = os.path.join('testing_notes', "%s.md" % (year_month_day) )
+        wiki_entry = "testing-notes:-%s.md" % (year_month_day)
         print("Creating wiki entry:", wiki_entry)
         wiki_path = os.path.join(wiki_util.get_dir(), wiki_entry)
 

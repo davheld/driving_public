@@ -292,6 +292,8 @@ void read_tfm(dgc_transform_t t, const char *filename)
   ROS_ASSERT(fp);
   do {
     err = fgets(line, 1000, fp);
+    if( line[0]=='#' )
+      continue;
 
     if(err != NULL) {
       unit = dgc_next_word(line);

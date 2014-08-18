@@ -78,6 +78,7 @@ void BagReader::load_bags(const std::vector<std::string> & bagpaths, ros::Durati
   topics.push_back(std::string("/driving/ApplanixGPS"));
   topics.push_back(std::string("/driving/ApplanixRMS"));
   topics.push_back(std::string("/driving/ladybug/images"));
+  topics.push_back(std::string("/driving/LocalizePose"));
 
   BOOST_FOREACH(std::string const& bagpath, bagpaths) {
     ROS_DEBUG_STREAM("Loading data from " <<bagpath);

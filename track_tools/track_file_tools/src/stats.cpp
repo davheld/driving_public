@@ -36,7 +36,7 @@
  ********************************************************/
 
 
-/** This program takes a tm file as input and
+/** This program takes a trk file as input (see track_file_io) and
   * displays the number of tracks/frames/points it contains, broken down by
   * labels.
   */

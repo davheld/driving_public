@@ -44,3 +44,6 @@ target_link_libraries(fake_localizer ${PROJECT_NAME})
 
 add_executable(localize_pose_tf_broadcaster src/localize_pose_tf_broadcaster.cpp)
 target_link_libraries(localize_pose_tf_broadcaster ${PROJECT_NAME})
+
+add_executable(gps_fix_pub src/gps_fix_pub.cpp)
+target_link_libraries(gps_fix_pub ${catkin_LIBRARIES})

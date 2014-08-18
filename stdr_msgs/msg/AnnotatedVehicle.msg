@@ -38,6 +38,10 @@ uint8 type
 # annotation tags
 string[] tags
 
+# the vehicle's current position and size
+geometry_msgs/Pose pose
+geometry_msgs/Vector3 size
+
 # the vehicle's position on the RNDF
 geometry_msgs/Point rndf_point
 

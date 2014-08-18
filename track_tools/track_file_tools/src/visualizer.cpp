@@ -39,7 +39,7 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <track_file_io/track_file_io.h>
 
-/** This program loads a tm file (see track_file_io) and displays
+/** This program loads a trk file (see track_file_io) and displays
   * the data in PCLVisualizer, track by track, frame by frame.
   *
   * The data can have color or not.

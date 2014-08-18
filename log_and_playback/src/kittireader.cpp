@@ -209,7 +209,10 @@ bool KittiVeloReader::next()
 
     spin_->header.stamp = t_start;
     // Recent Additions
-    time_ =ros::Time(t_start *1E-6);
+
+    // TEMPORARY TIMESTAMP FIX FOR NEW FORMAT
+    //time_ =ros::Time(t_start *1E-6);
+    time_ =ros::Time(t_start *1E-9);
     stdr_velodyne::PointType pt;
 
     float x,y,z;
@@ -244,13 +247,14 @@ bool KittiVeloReader::next()
       pt.x = x;
       pt.y = y;
       pt.z = z;
-      pt.intensity = intensity;
+      pt.intensity = intensity * 255;
       pt.h_angle = h_angle;
       pt.encoder = encoder;
       pt.v_angle = v_angle;
       pt.beam_id = beam_id -1 ;
-      pt.beam_nb = beam_id - 1;//beam_nb;
-      pt.timestamp = static_cast<double>(t_start) * 1e-6;
+      pt.beam_nb = beam_id - 1; //beam_nb;
+      //pt.timestamp = static_cast<double>(t_start) * 1e-6;
+      pt.timestamp = static_cast<double>(t_start) * 1e-9;
       pt.distance = distance;
       // add to pointcloud
       spin_->push_back(pt);

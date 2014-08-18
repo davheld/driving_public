@@ -321,8 +321,10 @@ stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
   while( ! spinQ_.empty() && ! spin && can_transform ) {
 
     ROS_DEBUG_STREAM(spinQ_.size() <<" spins in Q.");
+    // NEW KITTI CHANGE NOT Robust
 
-    can_transform = tf_listener_.canTransform(target_frame, spinQ_.front()->header.frame_id, ros::Time(spinQ_.front()->header.stamp*1E-6));
+    //can_transform = tf_listener_.canTransform(target_frame, spinQ_.front()->header.frame_id, ros::Time(spinQ_.front()->header.stamp*1E-6));
+    can_transform = tf_listener_.canTransform(target_frame, spinQ_.front()->header.frame_id, ros::Time(spinQ_.front()->header.stamp*1E-9));
     if( !can_transform )
       break;
 

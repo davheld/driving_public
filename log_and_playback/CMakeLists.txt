@@ -58,3 +58,6 @@ target_link_libraries(bag2dgc ${PROJECT_NAME})
 add_executable(imukitti src/imu_kitti.cpp)
 target_link_libraries(imukitti ${PROJECT_NAME})
 
+add_executable(imukitti2 src/imu_kitti2.cpp)
+target_link_libraries(imukitti2 ${PROJECT_NAME})
+

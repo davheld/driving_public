@@ -42,32 +42,10 @@ int main(int argc, char *argv[]){
       return 1;
     }
 
-  /*typedef vector<boost::filesystem::path> vec;             // store paths,
-        vec v;                                // so we can sort them later
 
-        copy(boost::filesystem::directory_iterator(p_data),
-             boost::filesystem::directory_iterator(),
-             back_inserter(v));
-
-        sort(v.begin(), v.end());             // sort, since directory iteration
-        // is not ordered on some file systems */
-
-  /*
-        boost::filesystem::ifstream tsfile(p_ts);
-        vector<string> timestamps;
-        string timestamp;
-
-        // saving timestamps
-        if (tsfile.is_open()){
-          while(getline(tsfile, timestamp)){
-            timestamps.push_back(timestamp);
-          }
-        }
-        */
 
   int idx =0;
-  uint64_t epoch_time = 1000000;
-  //for (vec::const_iterator it (v.begin()); it != v.end(); ++it)
+  uint64_t epoch_time = 100000;
 
   boost::filesystem::ifstream imufile(p);
   string line;
@@ -76,7 +54,7 @@ int main(int argc, char *argv[]){
   if (imufile.is_open()){
       while(getline(imufile, line)){
           kitfile << epoch_time <<" ";
-          epoch_time += 1000000;
+          epoch_time += 100000;
           vector<string> fields;
           boost::algorithm::split(fields, line, is_any_of(" "));
           for(int n = 0; n < fields.size(); n++){

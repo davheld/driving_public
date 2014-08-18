@@ -52,6 +52,12 @@
 namespace log_and_playback
 {
 
+/*
+  Error Acknowledement - Currently within the Kitti Dataset Timestamp are
+  stored in increments of 1 Million, this should be 100,000. Until the log files are
+  recomputed, the issues will be handled locally in this file. With the ability to
+  correct them back into the desired output being commented into this file as well
+  */
 
 void KittiApplanixReader::open(const std::string & filename)
 {
@@ -80,7 +86,9 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::strin
 
   ss >> epoch_time;
 
-  ep_time = static_cast<double>(epoch_time) * 1e-9;//* 1e-9;
+  //Temporary Fix please revert to above line
+  //ep_time = static_cast<double>(epoch_time) * 1e-6;
+  ep_time = static_cast<double>(epoch_time) * 1e-7;
   for(int i=0; i<25; i++){
     ss >> data[i];
   }
@@ -201,6 +209,10 @@ bool KittiVeloReader::next()
       return ok_;
     }
 
+    //Temporary fix. Delete two line below once log files are fixed
+    t_start = uint64_t(t_start * 1e-1);
+    t_end = uint64_t(t_end * 1e-1);
+
     spin_.reset(new stdr_velodyne::PointCloud);
     spin_->reserve(num_points);
 
@@ -208,11 +220,8 @@ bool KittiVeloReader::next()
     spin_->header.seq = 14;
 
     spin_->header.stamp = t_start;
-    // Recent Additions
 
-    // TEMPORARY TIMESTAMP FIX FOR NEW FORMAT
-    //time_ =ros::Time(t_start *1E-6);
-    time_ =ros::Time(t_start *1E-9);
+    time_ =ros::Time(t_start *1E-6);
     stdr_velodyne::PointType pt;
 
     float x,y,z;
@@ -253,8 +262,7 @@ bool KittiVeloReader::next()
       pt.v_angle = v_angle;
       pt.beam_id = beam_id -1 ;
       pt.beam_nb = beam_id - 1; //beam_nb;
-      //pt.timestamp = static_cast<double>(t_start) * 1e-6;
-      pt.timestamp = static_cast<double>(t_start) * 1e-9;
+      pt.timestamp = static_cast<double>(t_start) * 1e-6;
       pt.distance = distance;
       // add to pointcloud
       spin_->push_back(pt);

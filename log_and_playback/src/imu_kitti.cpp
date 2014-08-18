@@ -91,7 +91,7 @@ int main(int argc, char *argv[]){
     boost::posix_time::ptime start(gregorian::date(1970,1,1));
     boost::posix_time::time_duration dur = t - start;\
     uint64_t epoch = dur.total_seconds();
-    uint64_t ep2 = dur.total_nanoseconds();
+    uint64_t ep2 = dur.total_nanoseconds() / 1e3;
     kitfile << ep2 <<" ";
 
     boost::filesystem::ifstream imufile(*it);

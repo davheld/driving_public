@@ -44,13 +44,13 @@ const tf::Quaternion Q0(0, 0, 0, 1); //x, y, z, w
 
 // O=(x_offset,y_offset) is the difference between
 
-LocalizerBase::LocalizerBase()
+LocalizerBase::LocalizerBase(std::string frame_prefix)
   : first_(true)
 {
   transform_utm_to_local_utm_.frame_id_ = "utm";
-  transform_utm_to_local_utm_.child_frame_id_ = "local_utm";
-  transform_local_utm_to_smooth_.frame_id_ = "local_utm";
-  transform_local_utm_to_smooth_.child_frame_id_ = "smooth";
+  transform_utm_to_local_utm_.child_frame_id_ = frame_prefix + "local_utm";
+  transform_local_utm_to_smooth_.frame_id_ = frame_prefix + "local_utm";
+  transform_local_utm_to_smooth_.child_frame_id_ = frame_prefix + "smooth";
 }
 
 void LocalizerBase::update_transforms(const stdr_msgs::LocalizePose & pose_msg)

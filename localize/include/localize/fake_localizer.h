@@ -46,6 +46,7 @@ namespace localize {
 class FakeLocalizer : public LocalizerBase
 {
 public:
+  FakeLocalizer(std::string frame_prefix);
   FakeLocalizer(double x_shift = 0, double y_shift = 0);
 
   void update(const stdr_msgs::ApplanixPose& applanix_pose);

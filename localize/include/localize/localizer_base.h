@@ -49,7 +49,7 @@ namespace localize {
 class LocalizerBase
 {
 public:
-  LocalizerBase();
+  LocalizerBase(std::string frame_prefix="");
 
   /// Adds both transforms to the transformer. Useful when working offline (playback)
   void addToTransformer(tf::Transformer & transformer, const std::string & authority = "default_authority") const;

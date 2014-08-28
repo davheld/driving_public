@@ -68,7 +68,11 @@ LadybugCompressorHeaderInfo::parse( const unsigned char*   pData)
   unsigned version  = swab( *(unsigned*)&pData[ 16 + 4 ] );
   //unsigned sequence = swab( *(unsigned*)&pData[ 16 + 16 ] );
   
-  ROS_ASSERT( signature == 0xCAFEBABE || version == 2 );
+  if( signature != 0xCAFEBABE && version != 2 ) {
+    ROS_FATAL_STREAM("Bad header: signature=" <<std::hex <<signature
+                     <<"(expected 0xCAFEBABE) and version=" <<version);
+    ROS_BREAK();
+  }
   
   const unsigned* p = (unsigned*)(pData + 0x0340); //1024 - 24*8
   for( int i = 0; i < LADYBUG_COMPRESSOR_HEADER_MAX_IMAGES; i++ ) {

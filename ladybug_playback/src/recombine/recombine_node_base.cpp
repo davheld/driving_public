@@ -60,12 +60,8 @@ RecombineNodeBase::RecombineNodeBase(ros::NodeHandle & nh, ros::NodeHandle & pri
     cinfos_[i].reset(new camera_info_manager::CameraInfoManager(cimnh));
     cinfos_[i]->setCameraName(std::string("ladybug") + istr);
 
-    if( ! cinfos_[i]->loadCameraInfo(camera_info_url) ) {
-      ROS_WARN_STREAM("Could not load calibration information for camera "
-                      <<i <<" at URL " <<camera_info_url
-                      <<". Publishing uncalibrated images.");
-      cinfos_[i].reset();
-    }
+    if( ! cinfos_[i]->loadCameraInfo(camera_info_url) )
+      cinfos_[i].reset(); // we will create this later, after receiving the first image
   }
 
   srv_.setCallback(boost::bind(&RecombineNodeBase::reconfig, this, _1, _2));

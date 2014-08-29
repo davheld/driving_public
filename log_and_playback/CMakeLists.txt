@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(log_and_playback)
-set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Debug)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp stdr_msgs stdr_lib blf dgc_transform localize stdr_velodyne ladybug_playback
@@ -54,6 +54,9 @@ target_link_libraries(profile_velodyne ${PROJECT_NAME} ${GPERFTOOLS_PROFILER})
 
 add_executable(bag2dgc src/bag_to_dgc_converter.cpp)
 target_link_libraries(bag2dgc ${PROJECT_NAME})
+
+add_executable(split_bags src/split_bags.cpp)
+target_link_libraries(split_bags ${catkin_LIBRARIES})
 
 add_executable(imukitti src/imu_kitti.cpp)
 target_link_libraries(imukitti ${PROJECT_NAME})

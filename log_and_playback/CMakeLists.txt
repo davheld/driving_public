@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(log_and_playback)
-set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 find_package(catkin REQUIRED COMPONENTS
   roscpp stdr_msgs stdr_lib blf dgc_transform localize stdr_velodyne ladybug_playback

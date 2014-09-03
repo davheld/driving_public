@@ -35,14 +35,21 @@
   DAMAGE.
  ********************************************************/
 
+#include <iostream>
+
 #include <boost/foreach.hpp>
 
+#include <urdf/model.h>
+#include <kdl_parser/kdl_parser.hpp>
+#include <tf_conversions/tf_kdl.h>
+
+#include <stdr_lib/rosparam_helpers.h>
 #include <dgc_transform/dgc_transform.h>
 #include <stdr_velodyne/transform.h>
 #include <log_and_playback/data_reader.h>
-#include <iostream>
 
 namespace bpo=boost::program_options;
+
 
 namespace log_and_playback
 {
@@ -272,6 +279,57 @@ void BagTFListener::addStaticTransform(const tf::StampedTransform & t)
   static_transforms_.push_back(t);
 }
 
+void BagTFListener::addStaticTransforms(const std::vector< tf::StampedTransform > & transforms)
+{
+  static_transforms_.insert(static_transforms_.end(), transforms.begin(), transforms.end());
+}
+
+void RobotModel::addParam(const std::string &param)
+{
+  urdf::Model model;
+  if( !model.initParam(param) )
+    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
+                            "Could not load the robot model"));
+  addModel(model);
+}
+
+void RobotModel::addFile(const std::string &filename)
+{
+  urdf::Model model;
+  if( !model.initFile(filename) )
+    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
+                            "Could not load the robot model"));
+  addModel(model);
+}
+
+
+void RobotModel::addChildren(const KDL::SegmentMap::const_iterator segment)
+{
+  const std::string& root = GetTreeElementSegment(segment->second).getName();
+  const std::vector<KDL::SegmentMap::const_iterator>& children = GetTreeElementChildren(segment->second);
+  for (unsigned int i=0; i<children.size(); i++) {
+    const KDL::Segment& child = GetTreeElementSegment(children[i]->second);
+    if (child.getJoint().getType() == KDL::Joint::None) {
+      tf::StampedTransform tf_transform;
+      tf::transformKDLToTF(child.pose(0), tf_transform);
+      tf_transform.frame_id_ = root;
+      tf_transform.child_frame_id_ = child.getName();
+      static_transforms_.push_back(tf_transform);
+    }
+    addChildren(children[i]);
+  }
+}
+
+void RobotModel::addModel(const urdf::ModelInterface& model)
+{
+  KDL::Tree tree;
+  if (!kdl_parser::treeFromUrdfModel(model, tree))
+    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
+                            "Failed to extract kdl tree from xml robot description"));
+
+  addChildren(tree.getRootSegment());
+}
+
 
 void SpinReader::addOptions(boost::program_options::options_description& opts_desc)
 {
@@ -281,7 +339,7 @@ void SpinReader::addOptions(boost::program_options::options_description& opts_de
       ("cal", bpo::value<std::string>(), "velodyne calibration file")
       ("noical", "do not load any intensity calibration file (i.e. use the default config).")
       ("ical", bpo::value<std::string>(), "velodyne intensity calibration file")
-      ("vtfm", bpo::value<std::string>(), "velodyne TFM file")
+      ("robot_description", bpo::value<std::string>(), "robot model file")
       ("logs", bpo::value< std::vector<std::string> >()->required(), "log files to load (bags or dgc logs)")
       ;
 }
@@ -441,15 +499,17 @@ void SpinReader::loadCalibrationFromProgramOptions(const bpo::variables_map & vm
 
 void SpinReader::loadTFMFromProgramOptions(const bpo::variables_map & vm)
 {
-  std::string tfm_file;
-  if( vm.count("vtfm") )
-    tfm_file = vm["vtfm"].as<std::string>();
-  else if( ! ros::param::get("/driving/velodyne/ext_file", tfm_file) )
+  RobotModel model;
+  if( vm.count("robot_description") )
+    model.addFile(vm["robot_description"].as<std::string>());
+  else if( ! ros::param::has("/driving/robot_description") )
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
-                            "You must provide a TFM file, either on the command line, or as a rosparam."));
-  tf::Transform tr = dgc_transform::read(tfm_file.c_str());
-  tf::StampedTransform stamped_tr(tr, ros::Time(0), "base_link", "velodyne");
-  tf_listener_.addStaticTransform(stamped_tr);
+                            "You must provide a model description, either on the command line, or as a rosparam."));
+  model.addParam("/driving/robot_description");
+
+  BOOST_FOREACH(const tf::StampedTransform& t, model.getStaticTransforms()) {
+    tf_listener_.addStaticTransform(t);
+  }
 }
 
 

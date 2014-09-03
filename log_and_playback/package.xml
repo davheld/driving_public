@@ -21,6 +21,9 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <build_depend>roscpp</build_depend>
+  <build_depend>urdf</build_depend>
+  <build_depend>kdl_parser</build_depend>
+  <build_depend>tf_conversions</build_depend>
   <build_depend>stdr_msgs</build_depend>
   <build_depend>stdr_lib</build_depend>
   <build_depend>blf</build_depend>
@@ -31,6 +34,9 @@
   <!--build_depend>gperftools</build_depend-->
   
   <run_depend>roscpp</run_depend>
+  <run_depend>urdf</run_depend>
+  <run_depend>kdl_parser</run_depend>
+  <run_depend>tf_conversions</run_depend>
   <run_depend>stdr_msgs</run_depend>
   <run_depend>stdr_lib</run_depend>
   <run_depend>blf</run_depend>

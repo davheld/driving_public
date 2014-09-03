@@ -44,6 +44,8 @@
 #include <geometry_msgs/Point32.h>
 #include <tf/transform_listener.h>
 #include <tf/transform_broadcaster.h>
+#include <urdf_model/model.h>
+#include <kdl/tree.hpp>
 
 #include <log_and_playback/abstract_data_reader.h>
 #include <log_and_playback/bag_reader.h>
@@ -83,6 +85,31 @@ private:
 };
 
 
+class RobotModel
+{
+private:
+  std::vector< tf::StampedTransform > static_transforms_;
+
+  /// Adds the static transforms from the robot model.
+  void addModel(const urdf::ModelInterface& model);
+
+  void addChildren(const KDL::SegmentMap::const_iterator segment);
+
+public:
+  /// Adds the static transforms from the robot model.
+  /// The model is given as an XML string, retrieved from the parameter server,
+  /// using the given parameter name.
+  void addParam(const std::string & param);
+
+  /// Adds the static transforms from the robot model.
+  /// The model is given as an XML file.
+  void addFile(const std::string & filename);
+
+  inline const std::vector< tf::StampedTransform >& getStaticTransforms() const
+  { return static_transforms_; }
+};
+
+
 /** A TransformListener that is convenient to use with bags.
  *
  * The TF tree can be updated directly from ApplanixPose/LocalizePose messages,
@@ -112,6 +139,9 @@ public:
   /// Note: Static transforms will be added into the tree each time it is updated,
   /// which is probably too often...
   void addStaticTransform(const tf::StampedTransform &);
+
+  /// Adds a static transforms to the tree. Time stamp is irrelevant.
+  void addStaticTransforms(const std::vector< tf::StampedTransform > &);
 
 private:
   std::vector< tf::StampedTransform > static_transforms_;

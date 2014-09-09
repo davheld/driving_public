@@ -172,18 +172,19 @@ bool DataReader::next()
   static ros::Time last_time = ros::TIME_MIN;
   typedef std::vector< boost::shared_ptr<AbstractDataReader> > Readers;
 
-  readers_.front()->next();
-
-  for( Readers::iterator it = readers_.begin(); it!=readers_.end(); ) {
-    if( ! (*it)->ok() )
-      it = readers_.erase(it);
-    else
-      ++it;
-  }
-
   if( readers_.empty() ) {
     ok_ = false;
     return false;
+  }
+
+  readers_.front()->next();
+
+  if( !readers_.front()->ok() ) {
+    readers_.erase(readers_.begin());
+    if( readers_.empty() ) {
+      ok_ = false;
+      return false;
+    }
   }
 
   std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
@@ -192,6 +193,7 @@ bool DataReader::next()
   if( time_ < last_time )
     ROS_WARN("negative time change");
   last_time = time_;
+
   ok_ = true;
   return true;
 }

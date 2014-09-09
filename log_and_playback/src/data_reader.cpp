@@ -63,63 +63,63 @@ bool data_reader_time_compare(const boost::shared_ptr<AbstractDataReader>& a,
 
 void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
 {
-  ok_ = false;
   readers_.clear();
   bool dgc_logs=false, kitti_logs=false;
   std::vector<std::string> bag_logs;
+  bool do_skip = false;
 
   BOOST_FOREACH(std::string const & path, logs)
   {
-    if( (path.length()>4 && path.substr(path.length()-4).compare(".log")==0) ||
-        (path.length()>7 && path.substr(path.length()-7).compare(".log.gz")==0) )
+    if( boost::algorithm::ends_with(path, ".log") || boost::algorithm::ends_with(path, ".log.gz") )
     {
       boost::shared_ptr<LogDataReader> loggz_reader(new LogDataReader);
       loggz_reader->open(path);
       loggz_reader->next();
       readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(loggz_reader));
-      ok_ = true;
       dgc_logs = true;
+      do_skip = true;
     }
-    else if( path.length()>4 && path.substr(path.length()-4).compare(".vlf")==0 )
+    else if( boost::algorithm::ends_with(path, ".vlf") )
     {
       boost::shared_ptr<VlfDataReader> vlf_reader(new VlfDataReader);
       vlf_reader->open(path);
       vlf_reader->next();
       readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(vlf_reader));
-      ok_ = true;
       dgc_logs = true;
+      do_skip = true;
     }
-    else if( path.length()>4 && path.substr(path.length()-4).compare(".llf")==0 )
+    else if( boost::algorithm::ends_with(path, ".llf") )
     {
       boost::shared_ptr<LlfDataReader> llf_reader(new LlfDataReader);
       llf_reader->open(path);
       llf_reader->next();
       readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(llf_reader));
-      ok_ = true;
       dgc_logs = true;
+      do_skip = true;
     }
-    else if( path.length()>4 && path.substr(path.length()-4).compare(".bag")==0 )
+    else if( boost::algorithm::ends_with(path, ".bag") )
     {
       // load them all together later
       bag_logs.push_back(path);
+      do_skip = false; //we open directly with the offset
     }
-    else if( path.length()>4 && path.substr(path.length()-4).compare(".kit")==0 )
+    else if( boost::algorithm::ends_with(path, ".kit") )
     {
       boost::shared_ptr<KittiVeloReader> reader(new KittiVeloReader);
       reader->open(path);
       reader->next();
       readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
-      ok_ = true;
       kitti_logs = true;
+      do_skip = true;
     }
-    else if( path.length()>4 && path.substr(path.length()-4).compare(".imu")==0 )
+    else if( boost::algorithm::ends_with(path, ".imu") )
     {
       boost::shared_ptr<KittiApplanixReader> reader(new KittiApplanixReader);
       reader->open(path);
       reader->next();
       readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
-      ok_ = true;
       kitti_logs = true;
+      do_skip = true;
     }
     else
     {
@@ -145,20 +145,35 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
     boost::shared_ptr<BagReader> bag_reader(new BagReader);
     bag_reader->load_bags(bag_logs, skip);
     readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(bag_reader));
-    ok_ = true;
+    do_skip = false;
   }
+
+  ok_ = !readers_.empty();
+  BOOST_FOREACH(const boost::shared_ptr<AbstractDataReader>& reader, readers_) {
+    ok_ &= reader->ok();
+  }
+  if( !ok_ )
+    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("Failed to load the data"));
 
   std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
 
   time_ = readers_.front()->time();
-  const ros::Time start_time = time_ + skip;
-  while( time_ < start_time && next() );
+
+  if( do_skip ) {
+    const ros::Time start_time = time_ + skip;
+    while( time_ < start_time && next() );
+    if( !ok_ || time_ < start_time )
+      BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("Failed to load the data"));
+  }
 }
 
 bool DataReader::next()
 {
-  static ros::Time last_time=ros::TIME_MIN;
+  static ros::Time last_time = ros::TIME_MIN;
   typedef std::vector< boost::shared_ptr<AbstractDataReader> > Readers;
+
+  readers_.front()->next();
+
   for( Readers::iterator it = readers_.begin(); it!=readers_.end(); ) {
     if( ! (*it)->ok() )
       it = readers_.erase(it);
@@ -171,8 +186,6 @@ bool DataReader::next()
     return false;
   }
 
-  std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
-  readers_.front()->next();
   std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
 
   time_ = readers_.front()->time();

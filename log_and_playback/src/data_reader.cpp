@@ -415,7 +415,7 @@ stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
 
     ROS_DEBUG_STREAM(spinQ_.size() <<" spins in Q.");
 
-    can_transform = tf_listener_.canTransform(target_frame, spinQ_.front()->header.frame_id, ros::Time(spinQ_.front()->header.stamp*1E-6));
+    can_transform = tf_listener_.canTransform(target_frame, spinQ_.front()->header.frame_id, pcl_conversions::fromPCL(spinQ_.front()->header).stamp);
     if( !can_transform )
       break;
 

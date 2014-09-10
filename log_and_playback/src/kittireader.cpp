@@ -73,14 +73,13 @@ void KittiApplanixReader::close(){
 
 stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::string & line){
   uint64_t epoch_time;
-  double ep_time;
   double data[25];
   char space;
   std::stringstream ss(line);
 
   ss >> epoch_time;
 
-  ep_time = static_cast<double>(epoch_time) * 1e-9;//* 1e-9;
+  const double ep_time = static_cast<double>(epoch_time) * 1e-9;//* 1e-9;
   for(int i=0; i<25; i++){
     ss >> data[i];
   }
@@ -209,7 +208,7 @@ bool KittiVeloReader::next()
 
     spin_->header.stamp = t_start;
     // Recent Additions
-    time_ =ros::Time(t_start *1E-6);
+    time_ = pcl_conversions::fromPCL(spin_->header).stamp;
     stdr_velodyne::PointType pt;
 
     float x,y,z;
@@ -250,7 +249,7 @@ bool KittiVeloReader::next()
       pt.v_angle = v_angle;
       pt.beam_id = beam_id -1 ;
       pt.beam_nb = beam_id - 1;//beam_nb;
-      pt.timestamp = static_cast<double>(t_start) * 1e-6;
+      pt.timestamp = time_.toSec();
       pt.distance = distance;
       // add to pointcloud
       spin_->push_back(pt);

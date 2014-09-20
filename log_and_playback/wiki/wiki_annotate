@@ -91,6 +91,7 @@ COMMIT_TEMPLATE="Automatic wiki update"
 def main():
     wiki_util.ensure()
     parser = argparse.ArgumentParser()
+    parser.add_argument('-n', '--dry-run', action='store_true')
     parser.add_argument('bagfiles', nargs="+")
     args = parser.parse_args()
 
@@ -130,7 +131,10 @@ def main():
         interventions[year_month_day].append((shortname, bag_interventions))
 
     for year_month_day in interventions:
-        outfile = tempfile.NamedTemporaryFile(mode="w", delete=False)
+        if args.dry_run:
+            outfile = sys.stdout
+        else:
+            outfile = tempfile.NamedTemporaryFile(mode="w", delete=False)
 
         for shortname, bag_interventions in interventions[year_month_day]:
             outfile.write(LOGFILE_TEMPLATE.format(logfile=shortname))
@@ -146,30 +150,32 @@ def main():
             else:
                 print("No Interventions!")
             outfile.write(ADDITIONAL_TEMPLATE)
-        outfile.close()
 
-        # invoke editor, wait for user to edit
-        editor = os.getenv('EDITOR', 'gedit')
-        subprocess.call([editor, outfile.name])
+        if not args.dry_run:
+            outfile.close()
 
-        # commit to repository
-        wiki_entry = "testing-notes:-%s.md" % (year_month_day)
-        print("Creating wiki entry:", wiki_entry)
-        wiki_path = os.path.join(wiki_util.get_dir(), wiki_entry)
+            # invoke editor, wait for user to edit
+            editor = os.getenv('EDITOR', 'gedit')
+            subprocess.call([editor, outfile.name])
 
-        # create or append to wiki entry
-        #  TODO: do some parsing to determine if we've already added entries
-        #        for these log files to the wiki
-        with open(wiki_path, "a") as wiki_file:
-            with open(outfile.name, "r") as temp:
-                for line in temp:
-                    wiki_file.write(line)
+            # commit to repository
+            wiki_entry = "testing-notes:-%s.md" % (year_month_day)
+            print("Creating wiki entry:", wiki_entry)
+            wiki_path = os.path.join(wiki_util.get_dir(), wiki_entry)
 
-        wiki_util.add(wiki_entry)
-        wiki_util.commit(COMMIT_TEMPLATE)
+            # create or append to wiki entry
+            #  TODO: do some parsing to determine if we've already added entries
+            #        for these log files to the wiki
+            with open(wiki_path, "a") as wiki_file:
+                with open(outfile.name, "r") as temp:
+                    for line in temp:
+                        wiki_file.write(line)
 
-        # remove temporary file
-        os.remove(outfile.name)
+            wiki_util.add(wiki_entry)
+            wiki_util.commit(COMMIT_TEMPLATE)
+
+            # remove temporary file
+            os.remove(outfile.name)
 
 if __name__ == '__main__':
     main()

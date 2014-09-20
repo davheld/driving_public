@@ -71,7 +71,7 @@ from stdr_msgs.msg import EStopStatus
 
 import wiki_util
 
-ESTOP_TOPIC="/driving/EStopStatus"
+STATUS_TOPIC="/driving/PassatStatus"
 
 LOGFILE_TEMPLATE="""
 ### Log File: {logfile}
@@ -107,19 +107,26 @@ def main():
         bag = rosbag.Bag(bagfile)
         bagtime = float(bag._get_yaml_info('start'))
 
-        estop_state = 0
         bag_interventions = []
+
+        # The PassatStatus topic is published at approximately 3Hz when the
+        # hardware estop is in autonomous mode. Assume the estop was pressed if
+        # there is more than 1 sec between message (3 messages missed)
+        estop_state = False
         last_t = rospy.Time(0)
-        for topic, msg, t in bag.read_messages(topics=[ESTOP_TOPIC]):
-            last_t = t
-            if estop_state != msg.estop_code:
-                # check for intervention event (estop from run to pause)
-                if estop_state == EStopStatus.ESTOP_RUN and msg.estop_code == EStopStatus.ESTOP_PAUSE:
-                    bag_interventions.append((t,False))
-                estop_state = msg.estop_code
-        bag.close()
+        for topic, msg, t in bag.read_messages():
+            if topic == STATUS_TOPIC:
+                last_t = t
+                estop_state = True
+            if estop_state:
+                if (t - last_t).to_sec() > 1.0:
+                    # haven't seen a status message in 1 second. assume estop
+                    # was pushed
+                    estop_state = False
+                    bag_interventions.append((last_t,False))
+
         # if the bagfile ends with the estop enabled, assume an intervention
-        if estop_state == EStopStatus.ESTOP_RUN:
+        if estop_state:
             bag_interventions.append((last_t,True))
             print("WARNING: estop still in RUN mode at end of log file")
 

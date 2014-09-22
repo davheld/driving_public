@@ -1025,9 +1025,9 @@ void smpToPCL(const sensor_msgs::PointCloud& smp, pcl::PointCloud<pcl::PointXYZR
     (*pcd)[i].x = smp.points[i].x;
     (*pcd)[i].y = smp.points[i].y;
     (*pcd)[i].z = smp.points[i].z;
-    (*pcd)[i].r = smp.channels[0].values[i];
-    (*pcd)[i].g = smp.channels[0].values[i];
-    (*pcd)[i].b = smp.channels[0].values[i];
+    (*pcd)[i].r = smp.channels[0].values[i]; //intensity
+    (*pcd)[i].g = smp.channels[0].values[i]; //intensity
+    (*pcd)[i].b = smp.channels[0].values[i]; //intensity
 
     ROS_ASSERT(!isnan((*pcd)[i].x) && !isinf((*pcd)[i].x));
     ROS_ASSERT(!isnan((*pcd)[i].y) && !isinf((*pcd)[i].y));

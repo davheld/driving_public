@@ -35,33 +35,87 @@
   DAMAGE.
  ********************************************************/
 
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl_conversions/pcl_conversions.h>
-#include <track_file_io/track_file_io.h>
 
 /** This program loads a trk file (see track_file_io) and displays
-  * the data in PCLVisualizer, track by track, frame by frame.
+  * the data in PCLVisualizer.
+  * Either track by track, frame by frame; or all the tracks for a timestamp
+  * at once, colored by track id, with id indicated. This allows to see the
+  * context.
   *
-  * The data can have color or not.
+  * When displayed track by track, the data can have color information,
+  * intensity information, or none.
   */
 
 /* TODO:
  * - Add a filter CLI options: only certain class, min number of points, etc.
  */
 
+
+#include <map>
+#include <vector>
+
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/visualization/point_cloud_color_handlers.h>
+#include <pcl_conversions/pcl_conversions.h>
+#include <track_file_io/track_file_io.h>
+
+#include "common.h"
+
+
 boost::shared_ptr<pcl::visualization::PCLVisualizer> visualizer;
 track_file_io::Tracks tracks;
 
+// for navigation
 int dTrack=0, dFrame=0;
 unsigned trackid=0, frameid=0;
 
+// how to color the tracks when displayed track by track
 enum ColorType { CT_COLOR, CT_INTENSITY, CT_NONE, CT_END };
 ColorType color_type = CT_COLOR;
 
+// where to center the frame, when displayed track by track
 enum FrameType { FT_BASE_LINK, FT_DEMEAN, FT_END };
 FrameType frame_type = FT_DEMEAN;
 
+// the display mode: either track by track, or the whole frame at once
+enum DisplayModeType { DMT_TRACK, DMT_WHOLE, DMT_END };
+DisplayModeType display_mode = DMT_TRACK;
+
+// redraw needed
 bool refresh = true;
+
+// this text appears on stdout and on the visualizer
+std::string action_feedback_msg;
+void actionFeedbackMsg(const std::string &msg)
+{
+  std::cout <<msg <<std::endl;
+  action_feedback_msg = msg;
+}
+
+
+// these are pointers to individual track frames, when displaying the whole frame
+class Frame
+{
+  int trackid_;
+  const geometry_msgs::Pose *robot_pose_;
+  const sensor_msgs::PointCloud2 *pcd_;
+
+public:
+  Frame(const track_file_io::Track &tr, const track_file_io::Frame &f)
+    : trackid_(tr.id)
+    , robot_pose_(&f.robot_pose)
+    , pcd_(&f.cloud)
+  { }
+
+  inline const sensor_msgs::PointCloud2 & pcd() const { return *pcd_; }
+  inline const geometry_msgs::Pose & robotPose() const { return *robot_pose_; }
+  inline int trackid() const { return trackid_; }
+};
+
+// we organise them in a map, for easy access by timestamp
+typedef std::map<double, std::vector<Frame> > WholeFramesMap;
+WholeFramesMap whole_frames_map;
+WholeFramesMap::const_iterator whole_frames_it;
 
 
 void keyboardCallback(const pcl::visualization::KeyboardEvent& event, void* cookie)
@@ -98,13 +152,13 @@ void keyboardCallback(const pcl::visualization::KeyboardEvent& event, void* cook
       color_type = (ColorType)(((int)color_type+1) % CT_END);
       switch(color_type) {
       case CT_COLOR:
-        std::cout <<"Displaying colors (if available)." <<std::endl;
+        actionFeedbackMsg("Displaying colors (if available)");
         break;
       case CT_INTENSITY:
-        std::cout <<"Coloring by intensity (if available)." <<std::endl;
+        actionFeedbackMsg("Coloring by intensity (if available)");
         break;
       case CT_NONE:
-        std::cout <<"No colors." <<std::endl;
+        actionFeedbackMsg("No colors");
         break;
       }
       refresh = true;
@@ -114,10 +168,23 @@ void keyboardCallback(const pcl::visualization::KeyboardEvent& event, void* cook
       frame_type = (FrameType)(((int)frame_type+1) % FT_END);
       switch(frame_type) {
       case FT_BASE_LINK:
-        std::cout <<"Centering view on the vehicle." <<std::endl;
+        actionFeedbackMsg("Centering view on the vehicle");
         break;
       case FT_DEMEAN:
-        std::cout <<"Centering view on point cloud (demean)." <<std::endl;
+        actionFeedbackMsg("Centering view on point cloud (demean)");
+        break;
+      }
+      refresh = true;
+      break;
+
+    case 'v':
+      display_mode = (DisplayModeType)(((int)display_mode+1) % DMT_END);
+      switch(display_mode) {
+      case DMT_TRACK:
+        actionFeedbackMsg("Switching to displaying track by track");
+        break;
+      case DMT_WHOLE:
+        actionFeedbackMsg("Switching to displaying the whole set of tracks");
         break;
       }
       refresh = true;
@@ -133,6 +200,7 @@ void keyboardCallback(const pcl::visualization::KeyboardEvent& event, void* cook
       std::cout <<"\t  t   : jump to track number (type in terminal)" <<std::endl;
       std::cout <<"\tSPACE : change color display" <<std::endl;
       std::cout <<"\t  /   : change reference frame" <<std::endl;
+      std::cout <<"\t  v   : change display mode" <<std::endl;
       std::cout <<std::endl;
     }
   }
@@ -141,54 +209,72 @@ void keyboardCallback(const pcl::visualization::KeyboardEvent& event, void* cook
 /// Computes the new trackid and frameid
 void nav()
 {
-  if( dTrack>0 ) {
-    const unsigned newTrack = std::min((unsigned)tracks.tracks.size()-1, trackid+dTrack);
-    if( newTrack>trackid ) {
-      trackid = newTrack;
-      frameid = 0;
+  if( display_mode==DMT_TRACK ) {
+    if( dTrack>0 ) {
+      const unsigned newTrack = std::min((unsigned)tracks.tracks.size()-1, trackid+dTrack);
+      if( newTrack>trackid ) {
+        trackid = newTrack;
+        frameid = 0;
+      }
     }
-  }
-  else if( dTrack<0 ) {
-    const unsigned newTrack = std::max(0, (int)trackid+dTrack+(frameid>0?1:0));
-    if( newTrack<trackid || frameid>0 ) {
-      trackid = newTrack;
-      frameid = 0;
+    else if( dTrack<0 ) {
+      const unsigned newTrack = std::max(0, (int)trackid+dTrack+(frameid>0?1:0));
+      if( newTrack<trackid || frameid>0 ) {
+        trackid = newTrack;
+        frameid = 0;
+      }
     }
-  }
-  dTrack = 0;
+    dTrack = 0;
 
-  if( dFrame>0 ) {
-    if( frameid+dFrame < tracks.tracks[trackid].frames.size() ) {
-      frameid += dFrame;
+    if( dFrame>0 ) {
+      if( frameid+dFrame < tracks.tracks[trackid].frames.size() ) {
+        frameid += dFrame;
+      }
+      else if( trackid == tracks.tracks.size()-1 ) {
+        frameid = tracks.tracks[trackid].frames.size() - 1;
+      }
+      else {
+        ++trackid;
+        frameid = 0;
+      }
     }
-    else if( trackid == tracks.tracks.size()-1 ) {
-      frameid = tracks.tracks[trackid].frames.size() - 1;
+    else if( dFrame<0 ) {
+      if( frameid >= -dFrame ) {
+        frameid += dFrame;
+      }
+      else if( trackid==0 ) {
+        frameid = 0;
+      }
+      else {
+        --trackid;
+        frameid = tracks.tracks[trackid].frames.size() - 1;
+      }
     }
-    else {
-      ++trackid;
-      frameid = 0;
+    dFrame = 0;
+  }
+  else if( display_mode==DMT_WHOLE ) {
+    if( dFrame>0 || dTrack>0 ) {
+      dFrame = dTrack = 0;
+      WholeFramesMap::const_iterator it = whole_frames_it;
+      ++it;
+      if( it!=whole_frames_map.end() )
+        whole_frames_it = it;
+    }
+    else if( (dFrame<0 || dTrack<0) && whole_frames_it!=whole_frames_map.begin() ) {
+      dFrame = dTrack = 0;
+      --whole_frames_it;
     }
   }
-  else if( dFrame<0 ) {
-    if( frameid >= -dFrame ) {
-      frameid += dFrame;
-    }
-    else if( trackid==0 ) {
-      frameid = 0;
-    }
-    else {
-      --trackid;
-      frameid = tracks.tracks[trackid].frames.size() - 1;
-    }
+  else {
+    ROS_BREAK();
   }
-  dFrame = 0;
 }
 
 template <class PointT>
-void center_point_cloud(pcl::PointCloud<PointT>& pcd, const geometry_msgs::Pose& robot_pose)
+void centerPointCloud(pcl::PointCloud<PointT>& pcd, const geometry_msgs::Pose& robot_pose, FrameType ft)
 {
   Eigen::Vector3d centroid = Eigen::Vector3d::Zero();
-  if( frame_type == FT_DEMEAN ) {
+  if( ft == FT_DEMEAN ) {
     BOOST_FOREACH(const PointT& p, pcd.points) {
       centroid.x() += p.x;
       centroid.y() += p.y;
@@ -196,7 +282,7 @@ void center_point_cloud(pcl::PointCloud<PointT>& pcd, const geometry_msgs::Pose&
     }
     centroid /= pcd.points.size();
   }
-  else if( frame_type == FT_BASE_LINK ) {
+  else if( ft == FT_BASE_LINK ) {
     centroid.x() = robot_pose.position.x;
     centroid.y() = robot_pose.position.y;
     centroid.z() = robot_pose.position.z;
@@ -209,6 +295,158 @@ void center_point_cloud(pcl::PointCloud<PointT>& pcd, const geometry_msgs::Pose&
     p.y -= centroid.y();
     p.z -= centroid.z();
   }
+}
+
+
+void viewIndividualTrack()
+{
+  const track_file_io::Track &tr = tracks.tracks[trackid];
+  const sensor_msgs::PointCloud2 &pcd = tr.frames[frameid].cloud;
+
+  bool has_color = false;
+  bool has_intensity = false;
+  for(unsigned i=0; i<pcd.fields.size(); ++i) {
+    if( pcd.fields[i].name=="rgb" )
+      has_color = true;
+    else if( pcd.fields[i].name=="intensity" )
+      has_intensity = true;
+  }
+
+  if( has_color && color_type==CT_COLOR ) {
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::fromROSMsg(pcd, *cloud);
+    centerPointCloud(*cloud, tr.frames[frameid].robot_pose, frame_type);
+    visualizer->addPointCloud(cloud);
+  }
+  else if( has_intensity && color_type==CT_INTENSITY ) {
+    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::fromROSMsg(pcd, *cloud);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgbcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+    rgbcloud->resize(cloud->size());
+    for( unsigned i=0; i<cloud->size(); ++i) {
+      const pcl::PointXYZI& ipt = (*cloud)[i];
+      pcl::PointXYZRGB& rgbpt = (*rgbcloud)[i];
+      rgbpt.x = ipt.x;
+      rgbpt.y = ipt.y;
+      rgbpt.z = ipt.z;
+      rgbpt.r = rgbpt.g = rgbpt.b = ((float)ipt.intensity/256*(256-50)) + 50;
+    }
+    centerPointCloud(*rgbcloud, tr.frames[frameid].robot_pose, frame_type);
+    visualizer->addPointCloud(rgbcloud);
+  }
+  else {
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::fromROSMsg(pcd, *cloud);
+    centerPointCloud(*cloud, tr.frames[frameid].robot_pose, frame_type);
+    visualizer->addPointCloud(cloud);
+  }
+
+  std::stringstream ss;
+  ss <<"Track " <<trackid <<"/" <<tracks.tracks.size() <<", frame " <<frameid
+    <<"/" <<tr.frames.size() <<". label: " <<tr.label <<", timestamp="
+   <<std::setprecision(16) <<tr.frames[frameid].stamp.toSec();
+  actionFeedbackMsg(ss.str());
+}
+
+
+/** Computes RGB values corresponding to the value of val in our heatmap.
+ *
+ * large values will turn as red, and low values as blue. Values will be
+ * bounded between min and max.
+ * The resulting RGB will be between 0 and 255.
+ */
+template<typename RGBType>
+void heatmap(float val, float min, float max, RGBType *r, RGBType *g, RGBType *b)
+{
+  val = (val-min)/(max-min);
+  if( val>1 ) val=1;
+  if( val<0 ) val=0;
+
+  // In HSV color space, h=0 is red, h=240 is deep blue.
+  // With the following formula, we have red for max values of val, and blue
+  // for low values.
+  float h = 240 * (1-val);
+
+  // convert to rgb: http://www.cs.rit.edu/~ncs/color/t_convert.html
+  // there may be a PCL function for that, but I can't find it.
+  int i;
+  float f, p, q, t, s=1, v=1;
+  float _r, _g, _b;
+
+  h /= 60;      // sector 0 to 5
+  i = floor( h );
+  f = h - i;      // factorial part of h
+  p = v * ( 1 - s );
+  q = v * ( 1 - s * f );
+  t = v * ( 1 - s * ( 1 - f ) );
+
+  switch( i ) {
+    case 0:
+      _r = v;
+      _g = t;
+      _b = p;
+      break;
+    case 1:
+      _r = q;
+      _g = v;
+      _b = p;
+      break;
+    case 2:
+      _r = p;
+      _g = v;
+      _b = t;
+      break;
+    case 3:
+      _r = p;
+      _g = q;
+      _b = v;
+      break;
+    case 4:
+      _r = t;
+      _g = p;
+      _b = v;
+      break;
+    default:    // case 5:
+      _r = v;
+      _g = p;
+      _b = q;
+      break;
+  }
+  *r = _r * 255;
+  *g = _g * 255;
+  *b = _b * 255;
+}
+
+typedef Eigen::Vector3f RGB;
+std::vector<RGB> rgbs;
+
+void viewWholeFrame()
+{
+  BOOST_FOREACH(const Frame &frame, whole_frames_it->second)
+  {
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::fromROSMsg(frame.pcd(), *cloud);
+    centerPointCloud(*cloud, frame.robotPose(), FT_BASE_LINK);
+
+    const RGB &rgb = rgbs[frame.trackid() % rgbs.size()];
+    typedef pcl::visualization::PointCloudColorHandler<pcl::PointXYZ> CH;
+    typedef pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> CHP;
+    CHP color_h(cloud, rgb[0], rgb[1], rgb[2]);
+
+    std::stringstream ss;
+    ss <<frame.trackid();
+    visualizer->addPointCloud(cloud, color_h, std::string("track")+ss.str());
+
+    visualizer->addText3D(ss.str(), cloud->points[0], 1,
+                          rgb[0]/255, rgb[1]/255, rgb[2]/255,
+                          std::string("id")+ss.str());
+  }
+
+  visualizer->addCoordinateSystem(1);
+
+  std::stringstream ss;
+  ss <<"Timestamp=" <<std::setprecision(16) <<whole_frames_it->first;
+  actionFeedbackMsg(ss.str());
 }
 
 
@@ -225,6 +463,22 @@ int main(int argc, char **argv)
     return 1;
   }
 
+
+  rgbs.resize(60);
+  for(unsigned i=0; i<rgbs.size(); ++i)
+    heatmap(i, 0, rgbs.size()-1 , &rgbs[i][0], &rgbs[i][1], &rgbs[i][2]);
+  std::random_shuffle(rgbs.begin(), rgbs.end());
+
+
+
+  BOOST_FOREACH(const track_file_io::Track& tr, tracks.tracks) {
+    BOOST_FOREACH(const track_file_io::Frame& f, tr.frames) {
+      whole_frames_map[f.stamp.toSec()].push_back( Frame(tr,f) );
+    }
+  }
+  whole_frames_it = whole_frames_map.begin();
+
+
   visualizer.reset( new pcl::visualization::PCLVisualizer("tracks visualizer") );
   visualizer->registerKeyboardCallback(&keyboardCallback);
 
@@ -232,59 +486,18 @@ int main(int argc, char **argv)
   {
     nav();
     if( refresh ) {
-      const track_file_io::Track& tr = tracks.tracks[trackid];
-      const sensor_msgs::PointCloud2& pcd = tr.frames[frameid].cloud;
-      if( true /*tr.label_=="car" && pcd.points.size()>500*/ ) {
-        visualizer->removeAllPointClouds();
+      visualizer->removeAllPointClouds();
+      visualizer->removeAllShapes();
+      visualizer->removeCoordinateSystem();
 
-        bool has_color = false;
-        bool has_intensity = false;
-        for(unsigned i=0; i<pcd.fields.size(); ++i) {
-          if( pcd.fields[i].name=="rgb" )
-            has_color = true;
-          else if( pcd.fields[i].name=="intensity" )
-            has_intensity = true;
-        }
+      if( display_mode==DMT_TRACK )
+        viewIndividualTrack();
+      else if( display_mode==DMT_WHOLE )
+        viewWholeFrame();
 
-        if( has_color && color_type==CT_COLOR ) {
-          pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-          pcl::fromROSMsg(pcd, *cloud);
-          center_point_cloud(*cloud, tr.frames[frameid].robot_pose);
-          visualizer->addPointCloud(cloud);
-        }
-        else if( has_intensity && color_type==CT_INTENSITY ) {
-          pcl::PointCloud<pcl::PointXYZI>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZI>);
-          pcl::fromROSMsg(pcd, *cloud);
-          pcl::PointCloud<pcl::PointXYZRGB>::Ptr rgbcloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-          rgbcloud->resize(cloud->size());
-          for( unsigned i=0; i<cloud->size(); ++i) {
-            const pcl::PointXYZI& ipt = (*cloud)[i];
-            pcl::PointXYZRGB& rgbpt = (*rgbcloud)[i];
-            rgbpt.x = ipt.x;
-            rgbpt.y = ipt.y;
-            rgbpt.z = ipt.z;
-            rgbpt.r = rgbpt.g = rgbpt.b = ((float)ipt.intensity/256*(256-50)) + 50;
-          }
-          center_point_cloud(*rgbcloud, tr.frames[frameid].robot_pose);
-          visualizer->addPointCloud(rgbcloud);
-        }
-        else {
-          pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-          pcl::fromROSMsg(pcd, *cloud);
-          center_point_cloud(*cloud, tr.frames[frameid].robot_pose);
-          visualizer->addPointCloud(cloud);
-        }
-
-        refresh = false;
-        std::cout <<"Track " <<trackid <<"/" <<tracks.tracks.size() <<", frame "
-                 <<frameid <<"/" <<tr.frames.size()
-                <<". label: " <<tr.label
-               <<", timestamp=" <<std::setprecision(16) <<tr.frames[frameid].stamp.toSec()
-              <<"." <<std::endl;
-      }
-      else {
-        dFrame = 1;
-      }
+      refresh = false;
+      if( !action_feedback_msg.empty() )
+        visualizer->addText(action_feedback_msg, 80, 0, 15, 1, 1, 1, "action_feedback_msg");
     }
     visualizer->spinOnce(3);
   }

@@ -41,6 +41,9 @@
 #include <track_file_io/track_file_io.h>
 
 
+namespace track_file_io
+{
+
 static const std::string track_topic = "/tracks";
 static const std::string vel_pose_topic = "/velpose";
 
@@ -99,10 +102,6 @@ bool TrackFileReader::read(track_file_io::Track &track)
   return true;
 }
 
-
-
-namespace track_file_io
-{
 
 void save(const std::string& filename,
           const track_file_io::Tracks& tracks)

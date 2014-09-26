@@ -35,52 +35,36 @@
   DAMAGE.
  ********************************************************/
 
-#ifndef _TRACK_FILE_IO__TRACK_FILE_IO__H_
-#define _TRACK_FILE_IO__TRACK_FILE_IO__H_
+#ifndef __TRAC_FILE_IO__MANIPULATIONS_H__
+#define __TRAC_FILE_IO__MANIPULATIONS_H__
 
-
+#include <vector>
+#include <sensor_msgs/PointCloud2.h>
 #include <track_file_io/Tracks.h>
-
-#include <rosbag/bag.h>
-#include <rosbag/view.h>
-
 
 namespace track_file_io
 {
 
-class TrackFileWriter
-{
-  rosbag::Bag bag_;
-  bool velodyne_pose_set_, velodyne_pose_saved_;
-  geometry_msgs::Pose velodyne_pose_;
+void concat(sensor_msgs::PointCloud2& smp,
+            const std::vector<const sensor_msgs::PointCloud2*>& smps);
 
+// a predicate to find tracks by id
+class TrackIdPred
+{
+  track_file_io::Track::_id_type id_;
 public:
-  TrackFileWriter(const std::string& filename);
-  void setVelodynePose(const geometry_msgs::Pose& velodyne_pose);
-  bool isVelodynePoseSet() const { return velodyne_pose_set_; }
-  void write(const track_file_io::Track&);
+  explicit TrackIdPred(track_file_io::Track::_id_type id) : id_(id) {}
+  bool operator() (const Track& tr) const { return tr.id==id_; }
 };
 
+void deleteTrack(Tracks& tracks,
+                 Track::_id_type id);
 
-class TrackFileReader
-{
-  rosbag::Bag bag_;
-  rosbag::View tracks_view_;
-  rosbag::View::iterator track_it_;
-  geometry_msgs::Pose vel_pose_;
-  unsigned n_tracks_;
+// merge the tracks to the one with the smallest id and remove the others
+void mergeTracks(Tracks& tracks, Track::_id_type id1, Track::_id_type id2);
 
-public:
-  TrackFileReader(const std::string& filename);
-  const geometry_msgs::Pose& getVelodynePose() const { return vel_pose_; }
-  unsigned getNTracks() const { return n_tracks_; }
-  bool read(track_file_io::Track& track);
-};
-
-
-void save(const std::string& filename, const track_file_io::Tracks& tracks);
-void load(const std::string& filename, track_file_io::Tracks& tracks);
+void mergeTracks(Tracks& tracks, const std::vector<Track::_id_type>& ids);
 
 } //namespace track_file_io
 
-#endif //_TRACK_FILE_IO__TRACK_FILE_IO__H_
+#endif //__TRAC_FILE_IO__MANIPULATIONS_H__

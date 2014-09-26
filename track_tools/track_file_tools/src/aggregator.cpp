@@ -50,7 +50,7 @@
 #include <boost/program_options.hpp>
 #include <ros/assert.h>
 #include <track_file_io/track_file_io.h>
-#include "common.h"
+#include <track_file_io/manipulations.h>
 
 namespace bpo = boost::program_options;
 
@@ -69,7 +69,7 @@ void createGroupFrame(track_file_io::Frame& frame,
   std::vector<const sensor_msgs::PointCloud2 *> clouds;
   for(std::vector<const track_file_io::Frame*>::const_iterator it=begin; it<end; ++it)
     clouds.push_back( &((*it)->cloud) );
-  concatSMP2s(frame.cloud, clouds);
+  track_file_io::concat(frame.cloud, clouds);
 }
 
 int main(int argc, char **argv)

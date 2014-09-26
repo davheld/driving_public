@@ -58,8 +58,7 @@
 #include <pcl/visualization/point_cloud_color_handlers.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <track_file_io/track_file_io.h>
-
-#include "common.h"
+#include <track_file_io/manipulations.h>
 
 
 boost::shared_ptr<pcl::visualization::PCLVisualizer> visualizer;

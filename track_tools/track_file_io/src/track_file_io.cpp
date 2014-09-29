@@ -61,7 +61,7 @@ void TrackFileWriter::setVelodynePose(const geometry_msgs::Pose &velodyne_pose)
   velodyne_pose_set_ = true;
 }
 
-void TrackFileWriter::write(const track_file_io::Track& track)
+void TrackFileWriter::write(const Track& track)
 {
   ROS_ASSERT( velodyne_pose_set_ );
   if( !velodyne_pose_saved_ ) {
@@ -91,11 +91,11 @@ TrackFileReader::TrackFileReader(const std::string& filename)
   n_tracks_ = std::distance(track_it_, tracks_view_.end());
 }
 
-bool TrackFileReader::read(track_file_io::Track &track)
+bool TrackFileReader::read(Track &track)
 {
   if( track_it_==tracks_view_.end() )
     return false;
-  track_file_io::Track::ConstPtr t = track_it_->instantiate<track_file_io::Track>();
+  Track::ConstPtr t = track_it_->instantiate<Track>();
   ROS_ASSERT(t);
   track = *t;
   ++track_it_;
@@ -104,24 +104,31 @@ bool TrackFileReader::read(track_file_io::Track &track)
 
 
 void save(const std::string& filename,
-          const track_file_io::Tracks& tracks)
+          const Tracks& tracks)
 {
   TrackFileWriter writer(filename);
   writer.setVelodynePose(tracks.velodyne_pose);
-  BOOST_FOREACH(const track_file_io::Track& track, tracks.tracks) {
+  BOOST_FOREACH(const Track& track, tracks.tracks) {
     writer.write(track);
   }
 }
 
-void load(const std::string& filename, track_file_io::Tracks& tracks)
+void load(const std::string& filename, Tracks& tracks)
 {
   TrackFileReader reader(filename);
   tracks.tracks.clear();
   tracks.velodyne_pose = reader.getVelodynePose();
   tracks.tracks.reserve(reader.getNTracks());
-  track_file_io::Track track;
+  Track track;
   while( reader.read(track) )
     tracks.tracks.push_back(track);
+}
+
+Tracks load(const std::string& filename)
+{
+  Tracks tracks;
+  load(filename, tracks);
+  return tracks;
 }
 
 } //namespace track_file_io

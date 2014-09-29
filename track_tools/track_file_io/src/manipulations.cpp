@@ -165,7 +165,7 @@ void mergeTracks(Tracks& tracks,
 
     // add all the clouds for that frame
     std::vector<const sensor_msgs::PointCloud2*> pcds;
-    pcds.resize(frames.size());
+    pcds.reserve(frames.size());
     BOOST_FOREACH(const Frame *frame, frames) {
       pcds.push_back(&frame->cloud);
     }

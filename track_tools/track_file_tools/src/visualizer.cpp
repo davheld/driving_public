@@ -57,16 +57,26 @@
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/point_cloud_color_handlers.h>
 #include <pcl_conversions/pcl_conversions.h>
+
 #include <track_file_io/track_file_io.h>
 #include <track_file_io/manipulations.h>
 
 
+// The visualizer. Will be constructed later.
 boost::shared_ptr<pcl::visualization::PCLVisualizer> visualizer;
+
+// The tracks we are working with
 track_file_io::Tracks tracks;
 
 // for navigation
+// The keyboard event handler sets those to a non zero value when the navigation
+// keys are pressed, but loading the new frame happens in the main loop
 int dTrack=0, dFrame=0;
 unsigned trackid=0, frameid=0;
+
+// the display mode: either track by track, or the whole frame at once
+enum DisplayModeType { DMT_TRACK, DMT_WHOLE, DMT_END };
+DisplayModeType display_mode = DMT_TRACK;
 
 // how to color the tracks when displayed track by track
 enum ColorType { CT_COLOR, CT_INTENSITY, CT_NONE, CT_END };
@@ -76,20 +86,19 @@ ColorType color_type = CT_COLOR;
 enum FrameType { FT_BASE_LINK, FT_DEMEAN, FT_END };
 FrameType frame_type = FT_DEMEAN;
 
-// the display mode: either track by track, or the whole frame at once
-enum DisplayModeType { DMT_TRACK, DMT_WHOLE, DMT_END };
-DisplayModeType display_mode = DMT_TRACK;
-
 // redraw needed
 bool refresh = true;
 
+
 // this text appears on stdout and on the visualizer
 std::string action_feedback_msg;
+
 void actionFeedbackMsg(const std::string &msg)
 {
   std::cout <<msg <<std::endl;
   action_feedback_msg = msg;
 }
+
 
 
 // these are pointers to individual track frames, when displaying the whole frame
@@ -115,6 +124,7 @@ public:
 typedef std::map<double, std::vector<Frame> > WholeFramesMap;
 WholeFramesMap whole_frames_map;
 WholeFramesMap::const_iterator whole_frames_it;
+
 
 
 void keyboardCallback(const pcl::visualization::KeyboardEvent& event, void* cookie)
@@ -252,17 +262,23 @@ void nav()
     dFrame = 0;
   }
   else if( display_mode==DMT_WHOLE ) {
-    if( dFrame>0 || dTrack>0 ) {
-      dFrame = dTrack = 0;
+    if( dTrack!=0 ) {
+      dFrame = dTrack * 10;
+    }
+    while( dFrame>0 ) {
       WholeFramesMap::const_iterator it = whole_frames_it;
       ++it;
       if( it!=whole_frames_map.end() )
         whole_frames_it = it;
+      else
+        break;
+      --dFrame;
     }
-    else if( (dFrame<0 || dTrack<0) && whole_frames_it!=whole_frames_map.begin() ) {
-      dFrame = dTrack = 0;
+    while( dFrame<0 && whole_frames_it!=whole_frames_map.begin() ) {
       --whole_frames_it;
+      ++dFrame;
     }
+    dFrame = dTrack = 0;
   }
   else {
     ROS_BREAK();
@@ -484,6 +500,7 @@ int main(int argc, char **argv)
   while( ! visualizer->wasStopped() )
   {
     nav();
+
     if( refresh ) {
       visualizer->removeAllPointClouds();
       visualizer->removeAllShapes();

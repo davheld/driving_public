@@ -2,12 +2,12 @@ cmake_minimum_required(VERSION 2.8.3)
 project(track_file_tools)
 set(CMAKE_BUILD_TYPE Debug)
 
-find_package(catkin REQUIRED COMPONENTS roscpp pcl_conversions track_file_io)
+find_package(catkin REQUIRED COMPONENTS roscpp pcl_conversions track_file_io stdr_lib)
 find_package(PCL REQUIRED COMPONENTS common io visualization)
 find_package(Boost REQUIRED COMPONENTS program_options)
 
 catkin_package(
-  CATKIN_DEPENDS roscpp pcl_conversions track_file_io
+  CATKIN_DEPENDS roscpp pcl_conversions track_file_io stdr_lib
   DEPENDS Boost PCL
 )
 

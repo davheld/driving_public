@@ -58,6 +58,7 @@
 #include <pcl/visualization/point_cloud_color_handlers.h>
 #include <pcl_conversions/pcl_conversions.h>
 
+#include <stdr_lib/heat_map.h>
 #include <track_file_io/track_file_io.h>
 #include <track_file_io/manipulations.h>
 
@@ -363,77 +364,7 @@ void viewIndividualTrack()
   actionFeedbackMsg(ss.str());
 }
 
-
-/** Computes RGB values corresponding to the value of val in our heatmap.
- *
- * large values will turn as red, and low values as blue. Values will be
- * bounded between min and max.
- * The resulting RGB will be between 0 and 255.
- */
-template<typename RGBType>
-void heatmap(float val, float min, float max, RGBType *r, RGBType *g, RGBType *b)
-{
-  val = (val-min)/(max-min);
-  if( val>1 ) val=1;
-  if( val<0 ) val=0;
-
-  // In HSV color space, h=0 is red, h=240 is deep blue.
-  // With the following formula, we have red for max values of val, and blue
-  // for low values.
-  float h = 240 * (1-val);
-
-  // convert to rgb: http://www.cs.rit.edu/~ncs/color/t_convert.html
-  // there may be a PCL function for that, but I can't find it.
-  int i;
-  float f, p, q, t, s=1, v=1;
-  float _r, _g, _b;
-
-  h /= 60;      // sector 0 to 5
-  i = floor( h );
-  f = h - i;      // factorial part of h
-  p = v * ( 1 - s );
-  q = v * ( 1 - s * f );
-  t = v * ( 1 - s * ( 1 - f ) );
-
-  switch( i ) {
-    case 0:
-      _r = v;
-      _g = t;
-      _b = p;
-      break;
-    case 1:
-      _r = q;
-      _g = v;
-      _b = p;
-      break;
-    case 2:
-      _r = p;
-      _g = v;
-      _b = t;
-      break;
-    case 3:
-      _r = p;
-      _g = q;
-      _b = v;
-      break;
-    case 4:
-      _r = t;
-      _g = p;
-      _b = v;
-      break;
-    default:    // case 5:
-      _r = v;
-      _g = p;
-      _b = q;
-      break;
-  }
-  *r = _r * 255;
-  *g = _g * 255;
-  *b = _b * 255;
-}
-
-typedef Eigen::Vector3f RGB;
-std::vector<RGB> rgbs;
+static const stdr::ColorWheel rgbs(60);
 
 void viewWholeFrame()
 {
@@ -443,17 +374,17 @@ void viewWholeFrame()
     pcl::fromROSMsg(frame.pcd(), *cloud);
     centerPointCloud(*cloud, frame.robotPose(), FT_BASE_LINK);
 
-    const RGB &rgb = rgbs[frame.trackid() % rgbs.size()];
+    const stdr::ColorWheel::RGB &rgb = rgbs[frame.trackid()];
     typedef pcl::visualization::PointCloudColorHandler<pcl::PointXYZ> CH;
     typedef pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> CHP;
-    CHP color_h(cloud, rgb[0], rgb[1], rgb[2]);
+    CHP color_h(cloud, rgb.r, rgb.g, rgb.b);
 
     std::stringstream ss;
     ss <<frame.trackid();
     visualizer->addPointCloud(cloud, color_h, std::string("track")+ss.str());
 
     visualizer->addText3D(ss.str(), cloud->points[0], 1,
-                          rgb[0]/255, rgb[1]/255, rgb[2]/255,
+                          ((float)rgb.r)/255, ((float)rgb.g/255), ((float)rgb.b/255),
                           std::string("id")+ss.str());
   }
 
@@ -477,13 +408,6 @@ int main(int argc, char **argv)
     std::cerr <<"No tracks in " <<argv[1] <<std::endl;
     return 1;
   }
-
-
-  rgbs.resize(60);
-  for(unsigned i=0; i<rgbs.size(); ++i)
-    heatmap(i, 0, rgbs.size()-1 , &rgbs[i][0], &rgbs[i][1], &rgbs[i][2]);
-  std::random_shuffle(rgbs.begin(), rgbs.end());
-
 
 
   BOOST_FOREACH(const track_file_io::Track& tr, tracks.tracks) {

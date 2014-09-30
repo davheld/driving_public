@@ -26,6 +26,6 @@
   <run_depend>rosconsole</run_depend>
 
   <test_depend>gtest</test_depend>
-  <test_depend>pcl</test_depend>
+  <test_depend>libpcl-all-dev</test_depend>
   <test_depend>pcl_conversions</test_depend>
 </package>

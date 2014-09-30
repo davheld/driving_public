@@ -68,7 +68,6 @@ Recombiner::Recombiner()
   : frame_count_(0)
   , debayer_(false)
   , debayer_alg_(DC1394_BAYER_METHOD_HQLINEAR)
-  , selector_(6, true)
 {
   for(int i = 0; i < 24; i++) {
     fj_[i] = fastjpeg::init_decompress();
@@ -80,8 +79,10 @@ Recombiner::Recombiner()
     bayer_image_[i].pix.resize(bayer_image_[i].width * bayer_image_[i].height * bayer_image_[i].nchannels);
   }
 
-  for(int i = 0; i <6; ++i)
+  for(int i = 0; i <6; ++i) {
     combined_images_[i].resize(Recombiner::FULL_HEIGHT * Recombiner::FULL_WIDTH);
+    selector_[i] = true;
+  }
 }
 
 Recombiner::~Recombiner()

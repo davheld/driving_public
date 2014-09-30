@@ -62,7 +62,7 @@
 #include <ros/assert.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <track_file_io/track_file_io.h>
-#include "common.h"
+#include <track_file_io/manipulations.h>
 
 namespace bpo = boost::program_options;
 
@@ -109,7 +109,7 @@ int main(int argc, char **argv)
   for( unsigned f=0; f<tracks.tracks[track_nb].frames.size(); ++f )
     clouds.push_back( & tracks.tracks[track_nb].frames[f].cloud );
   sensor_msgs::PointCloud2 pcd;
-  concatSMP2s(pcd, clouds);
+  track_file_io::concat(pcd, clouds);
 
   bool has_color = false;
   bool has_intensity = false;

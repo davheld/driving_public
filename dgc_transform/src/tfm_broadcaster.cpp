@@ -110,6 +110,15 @@ int main(int argc, char **argv)
   }
 
   tf::Transform tr = dgc_transform::read(filename);
+
+  const dgc_transform::dgc_pose_t dgc = dgc_transform::dgc_pose_from_tf(tr);
+  std::cout <<"Transform: " <<parent_frame_id <<" " <<child_frame_id <<", xyz="
+           <<dgc.x <<" " <<dgc.y <<" " <<dgc.z
+          <<", rpy=" <<dgc.roll <<" " <<dgc.pitch <<" " <<dgc.yaw
+         <<", Q[xyzw]=" <<tr.getRotation().x() <<" " <<tr.getRotation().y()
+        <<" " <<tr.getRotation().z() <<" " <<tr.getRotation().w() <<std::endl;
+
+
   ros::Rate rate(1000.0/atoi(period_ms_str));
 
   while( ros::ok() ) {

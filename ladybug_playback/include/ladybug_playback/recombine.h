@@ -63,23 +63,37 @@ public:
 
   bool debayer_; //default to false
   dc1394bayer_method_t debayer_alg_; //defaults to DC1394_BAYER_METHOD_HQLINEAR
-  std::vector<bool> selector_; //defaults to all true
+
+  /// if selector_[i] is false then skip image i. Defaults to all true.
+  bool selector_[6];
 
   ~Recombiner();
 
-  /// @{
-  /** \brief Creates the bayer coded raw images from the separated compressed images.
+  /** \brief Creates the bayer coded raw images
+    *
+    * For each selected camera, performs decompression of each of the 4 bayer
+    * channel images, rotates them, and recombines them to form the bayer coded
+    * image.
+    *
     * \param raw_images the compressed and separated images
-    * \param bayer_images the resulting bayer coded raw images.
-    * \param selector if non null and selector[i] is false then skip image i
+    * \returns the resulting bayer coded raw images.
     */
   std::vector<sensor_msgs::Image::Ptr>
   operator() (const stdr_msgs::LadybugImages & raw_images);
 
+  /** \brief Creates the bayer coded raw images from the separated compressed images.
+    *
+    * For each selected camera, performs decompression of each of the 4 bayer
+    * channel images, rotates them, and recombines them to form the bayer coded
+    * image.
+    *
+    * \param raw_images the compressed and separated images
+    * \param bayer_images the resulting bayer coded raw images. Re-uses the memory
+    * when possible.
+    */
   void
   recombine(const stdr_msgs::LadybugImages & raw_images,
             std::vector<sensor_msgs::Image::Ptr> & bayer_images);
-  /// @}
 
 private:
   unsigned frame_count_; //used for saving the intermediate images to disk (debug)

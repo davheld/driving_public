@@ -35,8 +35,8 @@
   DAMAGE.
  ********************************************************/
 
-#ifndef TRACK_FILE_IO_H
-#define TRACK_FILE_IO_H
+#ifndef _TRACK_FILE_IO__TRACK_FILE_IO__H_
+#define _TRACK_FILE_IO__TRACK_FILE_IO__H_
 
 
 #include <track_file_io/Tracks.h>
@@ -44,6 +44,9 @@
 #include <rosbag/bag.h>
 #include <rosbag/view.h>
 
+
+namespace track_file_io
+{
 
 class TrackFileWriter
 {
@@ -55,8 +58,9 @@ public:
   TrackFileWriter(const std::string& filename);
   void setVelodynePose(const geometry_msgs::Pose& velodyne_pose);
   bool isVelodynePoseSet() const { return velodyne_pose_set_; }
-  void write(const track_file_io::Track&);
+  void write(const Track&);
 };
+
 
 class TrackFileReader
 {
@@ -70,14 +74,14 @@ public:
   TrackFileReader(const std::string& filename);
   const geometry_msgs::Pose& getVelodynePose() const { return vel_pose_; }
   unsigned getNTracks() const { return n_tracks_; }
-  bool read(track_file_io::Track& track);
+  bool read(Track& track);
 };
 
-namespace track_file_io
-{
-void save(const std::string& filename, const track_file_io::Tracks& tracks);
-void load(const std::string& filename, track_file_io::Tracks& tracks);
-}
 
+void save(const std::string& filename, const Tracks& tracks);
+void load(const std::string& filename, Tracks& tracks);
+Tracks load(const std::string& filename);
 
-#endif //TRACK_FILE_IO_H
+} //namespace track_file_io
+
+#endif //_TRACK_FILE_IO__TRACK_FILE_IO__H_

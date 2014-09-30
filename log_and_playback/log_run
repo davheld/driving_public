@@ -20,10 +20,7 @@ import datetime
 # parameter name of the config files to save
 config_files_param = (
   '/driving/velodyne/cal_file',
-  '/driving/velodyne/ext_file',
-  '/driving/velodyne/int_file',
-  '/driving/fleaL/transform',
-  '/driving/grasshopperR/transform'
+  '/driving/velodyne/int_file'
 )
 
 vlftopics = ["/driving/velodyne/packets"]

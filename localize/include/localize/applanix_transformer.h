@@ -54,7 +54,7 @@ namespace localize {
 class ApplanixTransformer
 {
 public:
-  ApplanixTransformer(const std::string &child_frame="base_link");
+  ApplanixTransformer(const std::string &frame_prefix="");
 
   /// Adds both transforms to the transformer. Useful when working offline (playback)
   void addToTransformer(tf::Transformer & transformer, const std::string & authority = "default_authority") const;

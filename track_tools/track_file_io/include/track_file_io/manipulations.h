@@ -35,14 +35,36 @@
   DAMAGE.
  ********************************************************/
 
-#ifndef __TRAC_FILE_TOOLS__COMMON_H__
-#define __TRAC_FILE_TOOLS__COMMON_H__
+#ifndef __TRAC_FILE_IO__MANIPULATIONS_H__
+#define __TRAC_FILE_IO__MANIPULATIONS_H__
 
 #include <vector>
 #include <sensor_msgs/PointCloud2.h>
+#include <track_file_io/Tracks.h>
 
-void concatSMP2s(sensor_msgs::PointCloud2& smp,
-                 const std::vector<const sensor_msgs::PointCloud2*>& smps);
+namespace track_file_io
+{
 
+void concat(sensor_msgs::PointCloud2& smp,
+            const std::vector<const sensor_msgs::PointCloud2*>& smps);
 
-#endif //__TRAC_FILE_TOOLS__COMMON_H__
+// a predicate to find tracks by id
+class TrackIdPred
+{
+  track_file_io::Track::_id_type id_;
+public:
+  explicit TrackIdPred(track_file_io::Track::_id_type id) : id_(id) {}
+  bool operator() (const Track& tr) const { return tr.id==id_; }
+};
+
+void deleteTrack(Tracks& tracks,
+                 Track::_id_type id);
+
+// merge the tracks to the one with the smallest id and remove the others
+void mergeTracks(Tracks& tracks, Track::_id_type id1, Track::_id_type id2);
+
+void mergeTracks(Tracks& tracks, const std::vector<Track::_id_type>& ids);
+
+} //namespace track_file_io
+
+#endif //__TRAC_FILE_IO__MANIPULATIONS_H__

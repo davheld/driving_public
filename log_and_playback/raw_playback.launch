@@ -3,5 +3,5 @@
   <include file="$(find stdr_velodyne)/launch/raw_playback.launch" />
   <include file="$(find ladybug_playback)/launch/raw_playback.launch" />
   <include file="$(find log_and_playback)/camera_raw_playback.launch" ns="/driving/fleaL" />
-  <include file="$(find log_and_playback)/camera_raw_playback.launch" ns="/driving/fleaR" />
+  <include file="$(find log_and_playback)/camera_raw_playback.launch" ns="/driving/grasshopperR" />
 </launch>

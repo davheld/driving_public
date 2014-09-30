@@ -122,7 +122,7 @@ tf::Transform read(const std::string& filename);
 
 
 /// Represents a pose (x, y, z and roll, pitch, yaw)
-typedef struct
+struct dgc_pose_t
 {
   double x;
   double y;
@@ -130,10 +130,12 @@ typedef struct
   double roll;
   double pitch;
   double yaw;
-} dgc_pose_t, *dgc_pose_p;
+};
 
 
 tf::Transform as_tf(const dgc_pose_t & t);
+
+dgc_pose_t dgc_pose_from_tf(const tf::Transform & t);
 
 
 } //namespace dgc_transform

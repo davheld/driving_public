@@ -35,14 +35,21 @@
   DAMAGE.
  ********************************************************/
 
+#include <iostream>
+
 #include <boost/foreach.hpp>
 
+#include <urdf/model.h>
+#include <kdl_parser/kdl_parser.hpp>
+#include <tf_conversions/tf_kdl.h>
+
+#include <stdr_lib/rosparam_helpers.h>
 #include <dgc_transform/dgc_transform.h>
 #include <stdr_velodyne/transform.h>
 #include <log_and_playback/data_reader.h>
-#include <iostream>
 
 namespace bpo=boost::program_options;
+
 
 namespace log_and_playback
 {
@@ -56,63 +63,63 @@ bool data_reader_time_compare(const boost::shared_ptr<AbstractDataReader>& a,
 
 void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
 {
-  ok_ = false;
   readers_.clear();
   bool dgc_logs=false, kitti_logs=false;
   std::vector<std::string> bag_logs;
+  bool do_skip = false;
 
   BOOST_FOREACH(std::string const & path, logs)
   {
-    if( (path.length()>4 && path.substr(path.length()-4).compare(".log")==0) ||
-        (path.length()>7 && path.substr(path.length()-7).compare(".log.gz")==0) )
+    if( boost::algorithm::ends_with(path, ".log") || boost::algorithm::ends_with(path, ".log.gz") )
     {
       boost::shared_ptr<LogDataReader> loggz_reader(new LogDataReader);
       loggz_reader->open(path);
       loggz_reader->next();
       readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(loggz_reader));
-      ok_ = true;
       dgc_logs = true;
+      do_skip = true;
     }
-    else if( path.length()>4 && path.substr(path.length()-4).compare(".vlf")==0 )
+    else if( boost::algorithm::ends_with(path, ".vlf") )
     {
       boost::shared_ptr<VlfDataReader> vlf_reader(new VlfDataReader);
       vlf_reader->open(path);
       vlf_reader->next();
       readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(vlf_reader));
-      ok_ = true;
       dgc_logs = true;
+      do_skip = true;
     }
-    else if( path.length()>4 && path.substr(path.length()-4).compare(".llf")==0 )
+    else if( boost::algorithm::ends_with(path, ".llf") )
     {
       boost::shared_ptr<LlfDataReader> llf_reader(new LlfDataReader);
       llf_reader->open(path);
       llf_reader->next();
       readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(llf_reader));
-      ok_ = true;
       dgc_logs = true;
+      do_skip = true;
     }
-    else if( path.length()>4 && path.substr(path.length()-4).compare(".bag")==0 )
+    else if( boost::algorithm::ends_with(path, ".bag") )
     {
       // load them all together later
       bag_logs.push_back(path);
+      do_skip = false; //we open directly with the offset
     }
-    else if( path.length()>4 && path.substr(path.length()-4).compare(".kit")==0 )
+    else if( boost::algorithm::ends_with(path, ".kit") )
     {
       boost::shared_ptr<KittiVeloReader> reader(new KittiVeloReader);
       reader->open(path);
       reader->next();
       readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
-      ok_ = true;
       kitti_logs = true;
+      do_skip = true;
     }
-    else if( path.length()>4 && path.substr(path.length()-4).compare(".imu")==0 )
+    else if( boost::algorithm::ends_with(path, ".imu") )
     {
       boost::shared_ptr<KittiApplanixReader> reader(new KittiApplanixReader);
       reader->open(path);
       reader->next();
       readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
-      ok_ = true;
       kitti_logs = true;
+      do_skip = true;
     }
     else
     {
@@ -138,40 +145,55 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
     boost::shared_ptr<BagReader> bag_reader(new BagReader);
     bag_reader->load_bags(bag_logs, skip);
     readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(bag_reader));
-    ok_ = true;
+    do_skip = false;
   }
+
+  ok_ = !readers_.empty();
+  BOOST_FOREACH(const boost::shared_ptr<AbstractDataReader>& reader, readers_) {
+    ok_ &= reader->ok();
+  }
+  if( !ok_ )
+    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("Failed to load the data"));
 
   std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
 
   time_ = readers_.front()->time();
-  const ros::Time start_time = time_ + skip;
-  while( time_ < start_time && next() );
+
+  if( do_skip ) {
+    const ros::Time start_time = time_ + skip;
+    while( time_ < start_time && next() );
+    if( !ok_ || time_ < start_time )
+      BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("Failed to load the data"));
+  }
 }
 
 bool DataReader::next()
 {
-  static ros::Time last_time=ros::TIME_MIN;
+  static ros::Time last_time = ros::TIME_MIN;
   typedef std::vector< boost::shared_ptr<AbstractDataReader> > Readers;
-  for( Readers::iterator it = readers_.begin(); it!=readers_.end(); ) {
-    if( ! (*it)->ok() )
-      it = readers_.erase(it);
-    else
-      ++it;
-  }
 
   if( readers_.empty() ) {
     ok_ = false;
     return false;
   }
 
-  std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
   readers_.front()->next();
+
+  if( !readers_.front()->ok() ) {
+    readers_.erase(readers_.begin());
+    if( readers_.empty() ) {
+      ok_ = false;
+      return false;
+    }
+  }
+
   std::sort(readers_.begin(), readers_.end(), data_reader_time_compare);
 
   time_ = readers_.front()->time();
   if( time_ < last_time )
     ROS_WARN("negative time change");
   last_time = time_;
+
   ok_ = true;
   return true;
 }
@@ -272,6 +294,57 @@ void BagTFListener::addStaticTransform(const tf::StampedTransform & t)
   static_transforms_.push_back(t);
 }
 
+void BagTFListener::addStaticTransforms(const std::vector< tf::StampedTransform > & transforms)
+{
+  static_transforms_.insert(static_transforms_.end(), transforms.begin(), transforms.end());
+}
+
+void RobotModel::addParam(const std::string &param)
+{
+  urdf::Model model;
+  if( !model.initParam(param) )
+    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
+                            "Could not load the robot model"));
+  addModel(model);
+}
+
+void RobotModel::addFile(const std::string &filename)
+{
+  urdf::Model model;
+  if( !model.initFile(filename) )
+    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
+                            "Could not load the robot model"));
+  addModel(model);
+}
+
+
+void RobotModel::addChildren(const KDL::SegmentMap::const_iterator segment)
+{
+  const std::string& root = GetTreeElementSegment(segment->second).getName();
+  const std::vector<KDL::SegmentMap::const_iterator>& children = GetTreeElementChildren(segment->second);
+  for (unsigned int i=0; i<children.size(); i++) {
+    const KDL::Segment& child = GetTreeElementSegment(children[i]->second);
+    if (child.getJoint().getType() == KDL::Joint::None) {
+      tf::StampedTransform tf_transform;
+      tf::transformKDLToTF(child.pose(0), tf_transform);
+      tf_transform.frame_id_ = root;
+      tf_transform.child_frame_id_ = child.getName();
+      static_transforms_.push_back(tf_transform);
+    }
+    addChildren(children[i]);
+  }
+}
+
+void RobotModel::addModel(const urdf::ModelInterface& model)
+{
+  KDL::Tree tree;
+  if (!kdl_parser::treeFromUrdfModel(model, tree))
+    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
+                            "Failed to extract kdl tree from xml robot description"));
+
+  addChildren(tree.getRootSegment());
+}
+
 
 void SpinReader::addOptions(boost::program_options::options_description& opts_desc)
 {
@@ -281,7 +354,7 @@ void SpinReader::addOptions(boost::program_options::options_description& opts_de
       ("cal", bpo::value<std::string>(), "velodyne calibration file")
       ("noical", "do not load any intensity calibration file (i.e. use the default config).")
       ("ical", bpo::value<std::string>(), "velodyne intensity calibration file")
-      ("vtfm", bpo::value<std::string>(), "velodyne TFM file")
+      ("robot_description", bpo::value<std::string>(), "robot model file")
       ("logs", bpo::value< std::vector<std::string> >()->required(), "log files to load (bags or dgc logs)")
       ;
 }
@@ -343,7 +416,7 @@ stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
     ROS_DEBUG_STREAM(spinQ_.size() <<" spins in Q.");
     // NEW KITTI CHANGE NOT Robust
 
-    can_transform = tf_listener_.canTransform(target_frame, spinQ_.front()->header.frame_id, ros::Time(spinQ_.front()->header.stamp*1E-6));
+    can_transform = tf_listener_.canTransform(target_frame, spinQ_.front()->header.frame_id, pcl_conversions::fromPCL(spinQ_.front()->header).stamp);
     if( !can_transform )
       break;
 
@@ -445,15 +518,17 @@ void SpinReader::loadCalibrationFromProgramOptions(const bpo::variables_map & vm
 
 void SpinReader::loadTFMFromProgramOptions(const bpo::variables_map & vm)
 {
-  std::string tfm_file;
-  if( vm.count("vtfm") )
-    tfm_file = vm["vtfm"].as<std::string>();
-  else if( ! ros::param::get("/driving/velodyne/ext_file", tfm_file) )
+  RobotModel model;
+  if( vm.count("robot_description") )
+    model.addFile(vm["robot_description"].as<std::string>());
+  else if( ! ros::param::has("/driving/robot_description") )
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
-                            "You must provide a TFM file, either on the command line, or as a rosparam."));
-  tf::Transform tr = dgc_transform::read(tfm_file.c_str());
-  tf::StampedTransform stamped_tr(tr, ros::Time(0), "base_link", "velodyne");
-  tf_listener_.addStaticTransform(stamped_tr);
+                            "You must provide a model description, either on the command line, or as a rosparam."));
+  model.addParam("/driving/robot_description");
+
+  BOOST_FOREACH(const tf::StampedTransform& t, model.getStaticTransforms()) {
+    tf_listener_.addStaticTransform(t);
+  }
 }
 
 

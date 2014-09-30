@@ -47,6 +47,8 @@
 #include <sstream>
 #include <math.h>
 
+#include <boost/foreach.hpp>
+
 #include <pcl/point_types.h>
 #include <pcl/common/centroid.h>
 
@@ -58,34 +60,12 @@
 
 using namespace std;
 
-string usageString()
-{
-  ostringstream oss;
-  oss << "Usage: " << endl;
-  oss << "  track_stats TRACKFILE [TRACKFILE ...]" << endl;
-  return oss.str();
-}
-
-Eigen::Vector3d computeCentroid(const sensor_msgs::PointCloud2& pc)
-{
-  pcl::PointCloud<pcl::PointXYZ> cloud;
-  pcl::fromROSMsg(pc, cloud);
-  Eigen::Vector4d centroid;
-  pcl::compute3DCentroid(cloud, centroid);
-  return centroid.head<3>();
-}
-
-double computeDisplacement(const sensor_msgs::PointCloud2& pc,
-                           const sensor_msgs::PointCloud2& prev)
-{
-  return (computeCentroid(pc)-computeCentroid(prev)).norm();
-}
-
 
 int main(int argc, char** argv)
 {
   if(argc < 2) {
-    cout << usageString() << endl;
+    cout << "Usage: " << endl;
+    cout << "  stats TRACKFILE [TRACKFILE ...]" << endl;
     return 1;
   }
 
@@ -98,13 +78,19 @@ int main(int argc, char** argv)
     track_file_io::Tracks tracks;
     track_file_io::load(argv[i], tracks);
 
-    for(size_t j=0; j<tracks.tracks.size(); ++j) {
-      track_file_io::Track& tr = tracks.tracks[j];
+    ros::Time mintime = ros::TIME_MAX, maxtime = ros::TIME_MIN;
+    BOOST_FOREACH(const track_file_io::Track& tr, tracks.tracks) {
       num_clouds[tr.label] += tr.frames.size();
-      num_tracks[tr.label]++;
-      for(size_t k=0; k<tr.frames.size(); ++k)
-        num_points[tr.label] += tr.frames[k].cloud.width;
+      ++num_tracks[tr.label];
+      BOOST_FOREACH(const track_file_io::Frame& frame, tr.frames) {
+        num_points[tr.label] += frame.cloud.width;
+        mintime = std::min(mintime, frame.stamp);
+        maxtime = std::max(maxtime, frame.stamp);
+      }
     }
+
+    cout <<"  start time = " <<setprecision(16) <<mintime.toSec() <<endl;
+    cout <<"  duration   = " <<setprecision(16) <<(maxtime-mintime).toSec() <<endl;
   }
 
   int total_tracks = 0;
@@ -112,19 +98,19 @@ int main(int argc, char** argv)
   unsigned long total_points = 0;
   cout << endl << "Track Statistics: " << endl;
   for(map<string, int>::iterator it = num_tracks.begin(); it!=num_tracks.end(); ++it) {
-    cout << it->first << " tracks: " << it->second << endl;
+    cout << it->first << "  tracks: " << it->second << endl;
     total_tracks += it->second;
   }
   cout << "Total tracks: " << total_tracks << endl << endl;
   cout << "Cloud Statistics: " << endl;
   for(map<string, int>::iterator it = num_clouds.begin(); it!=num_clouds.end(); ++it) {
-    cout << it->first << " clouds: " << it->second << endl;
+    cout << it->first << "  clouds: " << it->second << endl;
     total_clouds += it->second;
   }
   cout << "Total clouds: " << total_clouds << endl << endl;
   cout << "Point Statistics: " << endl;
   for(map<string, unsigned long>::iterator it = num_points.begin(); it!=num_points.end(); ++it) {
-    cout << it->first << " points: " << it->second << endl;
+    cout << it->first << "  points: " << it->second << endl;
     total_points += it->second;
   }
   cout << "Total points: " << total_points << endl << endl;

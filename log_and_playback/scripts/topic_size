@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+import rosbag
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('bag')
+args = parser.parse_args()
+
+topic_sizes = {}
+topic_len = 0
+
+with rosbag.Bag(args.bag) as bag:
+    for topic, msg, t in bag.read_messages(raw=True):
+        if not topic in topic_sizes:
+            topic_sizes[topic] = 0
+            topic_len = max(topic_len, len(topic))
+        l = len(msg[1])
+        topic_sizes[topic] += l
+
+print "Topic sizes:"
+for topic,size in sorted(topic_sizes.iteritems(), key=lambda x: x[1]):
+    # pad topic length so they're all the same
+    pad = topic_len - len(topic)
+    padded = topic + " "*pad
+
+    # human-readable sizes
+    suffix = "bytes"
+
+    if size > 1024:
+        size /= 1024.0
+        suffix = "KB"
+
+    if size > 1024:
+        size /= 1024.0
+        suffix = "MB"
+
+    if size > 1024:
+        size /= 1024.0
+        suffix = "GB"
+
+    print "  %s % 7.2f %s" % ( padded, size, suffix)
+

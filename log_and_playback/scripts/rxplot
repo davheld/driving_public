@@ -112,9 +112,9 @@ def getMsgFields(msg_type):
 
 # Argument parser
 parser = argparse.ArgumentParser()
-parser.add_argument('-s', '--start', metavar='SEC', type=double,
+parser.add_argument('-s', '--start', metavar='SEC', type=float,
                    help='start SEC seconds into the bag files')
-parser.add_argument('-u', '--duration', metavar='SEC', type=double,
+parser.add_argument('-u', '--duration', metavar='SEC', type=float,
                    help='play only SEC seconds from the bag files')
 parser.add_argument('bags_and_topics', metavar='BAGS TOPICS', type=str, nargs='+',
                     help='List of bags and topics to plots')
@@ -141,23 +141,18 @@ if len(bags)==0:
 
 # get the list of topics from the bags
 all_topics = {}
-start_time = None
-end_time = None
+times = []
 for b in bags:
     info_dict = yaml.load(subprocess.Popen(['rosbag', 'info', '--yaml', b], stdout=subprocess.PIPE).communicate()[0])
     try:
         all_topics.update(dict(zip([t['topic'] for t in info_dict['topics']], [t['type'] for t in info_dict['topics']])))
-        if start_time is None:
-            start_time = info_dict['start']
-        else:
-            start_time = min([start_time, info_dict['start']])
-        if end_time is None:
-            end_time = info_dict['end']
-        else:
-            end_time = max([end_time, info_dict['end']])
+        times.append(info_dict['start'])
+        times.append(info_dict['end'])
     except KeyError:
         pass
 
+start_time = min(times)
+end_time = max(times)
 first_time = start_time
 if args.start:
     start_time += args.start

@@ -266,6 +266,19 @@ tf::Transform as_tf(const dgc_pose_t& pose)
   return tr;
 }
 
+dgc_pose_t dgc_pose_from_tf(const tf::Transform & t)
+{
+  dgc_pose_t dgc;
+
+  dgc.x = t.getOrigin().x();
+  dgc.y = t.getOrigin().y();
+  dgc.z = t.getOrigin().z();
+
+  tf::Matrix3x3(t.getRotation()).getRPY(dgc.roll, dgc.pitch, dgc.yaw);
+
+  return dgc;
+}
+
 
 
 char* dgc_next_word(char *str)

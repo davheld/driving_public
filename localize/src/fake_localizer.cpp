@@ -46,6 +46,12 @@ FakeLocalizer::FakeLocalizer(double x_shift, double y_shift)
 {
 }
 
+FakeLocalizer::FakeLocalizer(std::string frame_prefix)
+  : LocalizerBase(frame_prefix)
+  , x_shift_(0), y_shift_(0)
+{
+}
+
 void FakeLocalizer::update(const stdr_msgs::ApplanixPose& applanix_pose)
 {
   const global_coords::UtmCoords u = global_coords::latLonToUtm(applanix_pose.latitude, applanix_pose.longitude);

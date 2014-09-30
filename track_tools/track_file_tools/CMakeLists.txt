@@ -39,3 +39,9 @@ target_link_libraries(track_file_tools_cumulator ${catkin_LIBRARIES} ${PCL_LIBRA
 set_target_properties(track_file_tools_cumulator
                       PROPERTIES OUTPUT_NAME cumulator
                       PREFIX "")
+
+add_executable(track_file_tools_manipulator src/manipulator.cpp)
+target_link_libraries(track_file_tools_manipulator ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+set_target_properties(track_file_tools_manipulator
+                      PROPERTIES OUTPUT_NAME manipulator
+                      PREFIX "")

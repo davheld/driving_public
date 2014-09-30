@@ -33,7 +33,8 @@ public:
   ros::Time time() const {return time_;}
 
   stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const;
-  stdr_msgs::ApplanixPose::Ptr parseApplanix(const std::string & line);
+  stdr_msgs::ApplanixPose::Ptr parseApplanix(const std::string & line, double smooth_x,
+                                             double smooth_y, double smooth_z);
 
 private:
   std::ifstream file_;

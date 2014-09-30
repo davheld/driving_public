@@ -392,7 +392,10 @@ bool SpinReader::nextSpin()
     if( applanix = data_reader_->instantiateApplanixPose() ) {
       ROS_DEBUG("Adding applanix pose t=%.3f", applanix->header.stamp.toSec());
       tf_listener_.addApplanixPose(*applanix);
-    }
+     // std::cout << "Smooth X: " << applanix->smooth_x << " Smooth Y: " << applanix->smooth_y << " Smooth Z: " << applanix->smooth_z  << std::endl;
+     //std::cout << "Header Stamp: " << applanix->header.stamp  << " HW timestamps: " << applanix->hardware_timestamp << std::endl;
+
+      }
     else if( localize_pose = data_reader_->instantiateLocalizePose() ) {
       tf_listener_.addLocalizePose(*localize_pose);
     }

@@ -77,18 +77,21 @@ void KittiApplanixReader::close(){
   file_.close();
 }
 
-stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::string & line){
+stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::string & line, double smooth_x,
+                                                                double smooth_y, double smooth_z){
   uint64_t epoch_time;
   double ep_time;
   double data[25];
   char space;
   std::stringstream ss(line);
 
+  //stdr_msgs::ApplanixPose::ConstPtr pose_;
+
   ss >> epoch_time;
 
   //Temporary Fix please revert to above line
   //ep_time = static_cast<double>(epoch_time) * 1e-6;
-  ep_time = static_cast<double>(epoch_time) * 1e-7;
+  ep_time = static_cast<double>(epoch_time) * 1E-7;
   for(int i=0; i<25; i++){
     ss >> data[i];
   }
@@ -117,9 +120,9 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::strin
 
   if (old_hw_timestamp_ !=0){
     double dt = ep_time - old_hw_timestamp_;
-    pose->smooth_x += pose->vel_east * dt;
-    pose->smooth_y += pose->vel_north * dt;
-    pose->smooth_z += pose->vel_up * dt;
+    pose->smooth_x = smooth_x + pose->vel_east * dt;
+    pose->smooth_y = smooth_y + pose->vel_north * dt;
+    pose->smooth_z = smooth_z + pose->vel_up * dt;
 
   }else{
     pose->smooth_x = 0;
@@ -134,12 +137,20 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::strin
 }
 
 bool KittiApplanixReader::next(){
+  double smooth_x, smooth_y, smooth_z;
+  smooth_x = smooth_y = smooth_z = 0;
+  if(pose_){
+      smooth_x = pose_->smooth_x;
+      smooth_y = pose_->smooth_y;
+      smooth_z = pose_->smooth_z;
+  }
+
   pose_.reset();
 
   while( true )
   {
     if( ok_ && std::getline(stream_, line_) ) {
-      pose_ = parseApplanix(line_);
+      pose_ = parseApplanix(line_, smooth_x, smooth_y, smooth_z);
       if( pose_ ) {
         time_ = pose_->header.stamp;
         return true;
@@ -262,7 +273,7 @@ bool KittiVeloReader::next()
       pt.v_angle = v_angle;
       pt.beam_id = beam_id -1 ;
       pt.beam_nb = beam_id - 1; //beam_nb;
-      pt.timestamp = static_cast<double>(t_start) * 1e-6;
+      pt.timestamp = static_cast<double>(t_start) * 1E-6;
       pt.distance = distance;
       // add to pointcloud
       spin_->push_back(pt);

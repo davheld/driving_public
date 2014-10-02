@@ -44,6 +44,7 @@
 
 
 #include <vector>
+#include <set>
 #include <string>
 #include <exception>
 
@@ -81,15 +82,34 @@ std::string help(const boost::program_options::options_description &opts_desc)
 }
 
 
-// global variables
-track_file_io::Tracks itracks, otracks;
+/* TODO:
+ * - add a command to trim a track from t1 to t2. when tracks are far away they
+ *   usually look bad, so it be great to be able to keep only the middle part.
+ */
 
+
+// global variables
+track_file_io::Tracks itracks;
+std::vector< std::set<track_file_io::Track::_id_type> > track_merge;
+std::set<track_file_io::Track::_id_type> track_delete;
+std::set<track_file_io::Track::_id_type> track_select;
+
+struct SubCmd
+{
+  char code;
+  track_file_io::Track::_id_type track_id;
+};
+
+typedef std::vector< std::set<track_file_io::Track::_id_type> >::iterator TrMrgIt;
 
 // forward declaration
-void process(const std::vector<std::string> &cmds);
-void process(const std::string &cmd);
+void parseCmds(const std::vector<std::string> &cmds);
+void parseCmd(const std::string &cmd);
+SubCmd parseSubCmd(const std::string &cmd, unsigned &idx);
 void checkCmd(char c);
-int getTrackNb(const std::string &cmd, int pos, int &val);
+track_file_io::Track::_id_type getTrackNb(const std::string &cmd, unsigned &idx);
+TrMrgIt findTrackMerge(track_file_io::Track::_id_type id);
+void process();
 
 
 int main(int argc, char **argv)
@@ -134,39 +154,93 @@ int main(int argc, char **argv)
     }
   }
 
-  //track_file_io::load(trk_filename, itracks);
+  track_file_io::load(trk_filename, itracks);
 
   try {
-    process(cmds);
+    parseCmds(cmds);
+    process();
   }
   catch( std::exception &e ) {
     std::cerr <<"Error: " <<e.what() <<std::endl;
     return 1;
   }
 
+  const std::string otrk_filename = trk_filename.substr(0, trk_filename.size()-4) + "-processed.trk";
+  track_file_io::save(otrk_filename, itracks);
+
   return 0;
 }
 
 
-
-void process(const std::vector<std::string> &cmds)
+// parse all commands
+void parseCmds(const std::vector<std::string> &cmds)
 {
   BOOST_FOREACH(const std::string &cmd, cmds) {
-    process(cmd);
+    parseCmd(cmd);
   }
 }
 
-void process(const std::string &cmd)
+// parse a single command string
+void parseCmd(const std::string &cmd)
 {
-  typedef std::pair<char,int> Cmd;
-  std::vector<Cmd> cmds;
-  for(unsigned i=0; i<cmd.size(); ) {
-    checkCmd(cmd[i]);
-    Cmd c;
-    c.first = cmd[i];
-    i = getTrackNb(cmd, i+1, c.second);
-    std::cout <<c.first <<" " <<c.second <<std::endl;
+  SubCmd target_cmd = {'u',-1};
+
+  for(unsigned i=0; i<cmd.size(); )
+  {
+    SubCmd c = parseSubCmd(cmd, i);
+
+    if( c.code=='s' ) {
+      c.code = 'm';
+      std::cerr <<"Select command not supported yet. Treating as merge command." <<std::endl;
+    }
+
+    if( track_file_io::find(itracks, c.track_id)==itracks.tracks.end() )
+      throw std::runtime_error( (boost::format("Track %d from command %s could not be found in input tracks") % (c.track_id, cmd.c_str())).str() );
+
+    if( c.code=='m' ) {
+      if( target_cmd.code=='u' ) {
+        target_cmd = c;
+        const TrMrgIt it2 = findTrackMerge(c.track_id);
+        if( it2==track_merge.end() ) {
+          std::set<track_file_io::Track::_id_type> S;
+          S.insert(c.track_id);
+          track_merge.push_back(S);
+        }
+      }
+      else if( target_cmd.code=='s' || target_cmd.code=='m' ) {
+        const TrMrgIt it1 = findTrackMerge(target_cmd.track_id);
+        assert(it1!=track_merge.end());
+        const TrMrgIt it2 = findTrackMerge(c.track_id);
+        if( it2==track_merge.end() ) {
+          it1->insert(c.track_id);
+        }
+        else {
+          it1->insert(it2->begin(), it2->end());
+          track_merge.erase(it2);
+        }
+      }
+    }
+    else if( c.code=='d' ) {
+      std::cerr <<"Delete command not supported yet" <<std::endl;
+      continue;
+      if( target_cmd.code!='u' )
+        throw std::runtime_error("delete command cannot be combined with another command");
+      track_delete.insert(c.track_id);
+    }
+    else if( c.code=='s' ) {
+
+    }
   }
+}
+
+SubCmd parseSubCmd(const std::string &cmd, unsigned &idx)
+{
+  SubCmd c;
+  checkCmd(cmd[idx]);
+  c.code = cmd[idx];
+  ++idx;
+  c.track_id = getTrackNb(cmd, idx);
+  return c;
 }
 
 void checkCmd(char c)
@@ -176,12 +250,36 @@ void checkCmd(char c)
     throw std::runtime_error( (boost::format("%c is not a recognized command") % c).str() );
 }
 
-int getTrackNb(const std::string &cmd, int pos, int &val)
+track_file_io::Track::_id_type getTrackNb(const std::string &cmd, unsigned &idx)
 {
-  const char *str = cmd.c_str()+pos;
+  const char *str = cmd.c_str()+idx;
   char *end = 0;
-  val = strtol(str, &end, 10);
+  const long val = strtol(str, &end, 10);
   if( end==str )
     throw std::runtime_error( (boost::format("Could not get the track number from \"%s\"") % str).str() );
-  return pos + (end-str);
+  idx += (end-str);
+  return val;
+}
+
+TrMrgIt findTrackMerge(track_file_io::Track::_id_type id)
+{
+  for(TrMrgIt it=track_merge.begin(); it!=track_merge.end(); ++it) {
+    if( it->find(id)!=it->end() )
+      return it;
+  }
+  return track_merge.end();
+}
+
+void process()
+{
+  if( !track_delete.empty() || !track_select.empty() ) {
+    std::cerr <<"Not supporting select or delete. Ignoring those and processing only the merges." <<std::endl;
+  }
+
+  BOOST_FOREACH(const std::set<track_file_io::Track::_id_type> S, track_merge) {
+    assert(!S.empty());
+    std::vector<track_file_io::Track::_id_type> track_ids;
+    track_ids.insert(track_ids.end(), S.begin(), S.end());
+    track_file_io::mergeTracks(itracks, track_ids);
+  }
 }

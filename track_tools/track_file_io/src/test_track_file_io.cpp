@@ -171,11 +171,10 @@ TEST(TrackFileIO, Delete)
   Tracks tracks = ref_tracks;
 
   {
-    Tracks::_tracks_type::const_iterator it =
-        std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(3));
+    Tracks::_tracks_type::const_iterator it = find(tracks, 3);
     EXPECT_FALSE(it==tracks.tracks.end());
     deleteTrack(tracks, 3);
-    it = std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(3));
+    it = find(tracks, 3);
     EXPECT_TRUE(it==tracks.tracks.end());
     EXPECT_EQ(9, tracks.tracks.size());
   }
@@ -185,11 +184,9 @@ TEST(TrackFileIO, Delete)
   for(unsigned id=0; id<10; ++id) {
     if( id==3 ) continue;
 
-    const Tracks::_tracks_type::const_iterator ref_it =
-        std::find_if(ref_tracks.tracks.begin(), ref_tracks.tracks.end(), TrackIdPred(id));
+    const Tracks::_tracks_type::const_iterator ref_it = find(ref_tracks, id);
     EXPECT_FALSE(ref_it==ref_tracks.tracks.end());
-    const Tracks::_tracks_type::const_iterator it =
-        std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(id));
+    const Tracks::_tracks_type::const_iterator it = find(tracks, id);
     EXPECT_FALSE(it==tracks.tracks.end());
 
     EXPECT_TRUE(*ref_it == *it);
@@ -199,8 +196,7 @@ TEST(TrackFileIO, Delete)
 unsigned nPts(const Tracks& tracks, Track::_id_type id)
 {
   unsigned n = 0;
-  const Tracks::_tracks_type::const_iterator it =
-      std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(id));
+  const Tracks::_tracks_type::const_iterator it = find(tracks, id);
   ROS_ASSERT(it!=tracks.tracks.end());
   BOOST_FOREACH(const Frame& f, it->frames) {
     n += f.cloud.width;
@@ -215,17 +211,17 @@ TEST(TrackFileIO, Merge)
   Tracks::_tracks_type::const_iterator it;
 
   {
-    it = std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(3));
+    it = find(tracks, 3);
     EXPECT_FALSE(it==tracks.tracks.end());
-    it = std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(7));
+    it = find(tracks, 7);
     EXPECT_FALSE(it==tracks.tracks.end());
 
     mergeTracks(tracks, 3, 7);
 
-    it = std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(7));
+    it = find(tracks, 7);
     EXPECT_TRUE(it==tracks.tracks.end());
     EXPECT_EQ(9, tracks.tracks.size());
-    it = std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(3));
+    it = find(tracks, 3);
     EXPECT_FALSE(it==tracks.tracks.end());
   }
 
@@ -239,10 +235,9 @@ TEST(TrackFileIO, Merge)
     if( id==7 || id==3 )
       continue;
 
-    const Tracks::_tracks_type::const_iterator ref_it =
-        std::find_if(ref_tracks.tracks.begin(), ref_tracks.tracks.end(), TrackIdPred(id));
+    const Tracks::_tracks_type::const_iterator ref_it = find(ref_tracks, id);
     EXPECT_FALSE(ref_it==ref_tracks.tracks.end());
-    it = std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(id));
+    it = find(tracks, id);
     EXPECT_FALSE(it==tracks.tracks.end());
     EXPECT_TRUE(*ref_it == *it);
   }

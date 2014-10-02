@@ -49,20 +49,22 @@ void concat(sensor_msgs::PointCloud2& smp,
   if( smps.empty() )
     return;
 
+  ROS_ASSERT( smps.front()->height == 1 );
+  smp.height = 1;
   smp.header = smps.front()->header;
-  smp.height = smps.front()->height;
   smp.fields = smps.front()->fields;
   smp.is_bigendian = smps.front()->is_bigendian;
   smp.point_step = smps.front()->point_step;
-  smp.row_step = smps.front()->row_step;
   smp.is_dense = smps.front()->is_dense;
 
-  size_t size = 0;
   smp.width = 0;
+  smp.data.clear();
+
+  size_t size = 0;
   BOOST_FOREACH(const sensor_msgs::PointCloud2* cloud, smps) {
+    ROS_ASSERT( cloud->height == 1 );
     ROS_ASSERT( smp.header.stamp == cloud->header.stamp );
     ROS_ASSERT( smp.header.frame_id == cloud->header.frame_id );
-    ROS_ASSERT( smp.height == cloud->height );
     ROS_ASSERT( smp.fields.size() == cloud->fields.size() );
     for(unsigned i=0; i<smp.fields.size(); ++i ) {
       ROS_ASSERT( smp.fields[i].name == cloud->fields[i].name );
@@ -72,19 +74,29 @@ void concat(sensor_msgs::PointCloud2& smp,
     }
     ROS_ASSERT( smp.is_bigendian == cloud->is_bigendian );
     ROS_ASSERT( smp.point_step == cloud->point_step );
-    ROS_ASSERT( smp.row_step == cloud->row_step );
     ROS_ASSERT( smp.is_dense == cloud->is_dense );
 
     smp.width += cloud->width;
     size += cloud->data.size();
   }
 
-  smp.data.reserve(smp.data.size() + size);
+  smp.data.reserve(size);
   BOOST_FOREACH(const sensor_msgs::PointCloud2* cloud, smps) {
     smp.data.insert(smp.data.end(),
                     cloud->data.begin(),
                     cloud->data.end());
   }
+}
+
+
+Tracks::_tracks_type::iterator find(Tracks& tracks, track_file_io::Track::_id_type id)
+{
+  return std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(id));
+}
+
+Tracks::_tracks_type::const_iterator find(const Tracks& tracks, track_file_io::Track::_id_type id)
+{
+  return std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(id));
 }
 
 
@@ -94,8 +106,7 @@ void deleteTrack(Tracks& tracks, Track::_id_type id)
     return;
 
   // search the index for the given track id
-  Tracks::_tracks_type::iterator it =
-      std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(id));
+  Tracks::_tracks_type::iterator it = find(tracks, id);
   if( it==tracks.tracks.end() )
     return;
 
@@ -134,8 +145,7 @@ void mergeTracks(Tracks& tracks,
   FrameMap frame_map;
   Tracks::_tracks_type::iterator track_with_smallest_id = tracks.tracks.end();
   BOOST_FOREACH(const Track::_id_type& id, ids) {
-    const Tracks::_tracks_type::iterator it =
-        std::find_if(tracks.tracks.begin(), tracks.tracks.end(), TrackIdPred(id));
+    const Tracks::_tracks_type::iterator it = find(tracks, id);
     if( it==tracks.tracks.end() )
       continue;
     if( track_with_smallest_id==tracks.tracks.end() || it->id < track_with_smallest_id->id )

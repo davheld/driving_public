@@ -45,17 +45,22 @@
 namespace track_file_io
 {
 
+/// Concatenates all the clouds from @param smps into @param smp (any data in
+/// @param smp will be discarded).
 void concat(sensor_msgs::PointCloud2& smp,
             const std::vector<const sensor_msgs::PointCloud2*>& smps);
 
 // a predicate to find tracks by id
 class TrackIdPred
 {
-  track_file_io::Track::_id_type id_;
+  Track::_id_type id_;
 public:
-  explicit TrackIdPred(track_file_io::Track::_id_type id) : id_(id) {}
+  explicit TrackIdPred(Track::_id_type id) : id_(id) {}
   bool operator() (const Track& tr) const { return tr.id==id_; }
 };
+
+Tracks::_tracks_type::iterator find(Tracks& tracks, Track::_id_type id);
+Tracks::_tracks_type::const_iterator find(const Tracks& tracks, Track::_id_type id);
 
 void deleteTrack(Tracks& tracks,
                  Track::_id_type id);

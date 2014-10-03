@@ -126,18 +126,18 @@ void deleteTrack(Tracks& tracks, Track::_id_type id)
   tracks.tracks.erase(tracks.tracks.end()-1);
 }
 
-void mergeTracks(Tracks& tracks,
+Tracks::_tracks_type::iterator mergeTracks(Tracks& tracks,
                  Track::_id_type id1,
                  Track::_id_type id2)
 {
   std::vector<Track::_id_type> ids;
   ids.push_back(id1);
   ids.push_back(id2);
-  mergeTracks(tracks, ids);
+  return mergeTracks(tracks, ids);
 }
 
-void mergeTracks(Tracks& tracks,
-                 const std::vector<Track::_id_type>& ids)
+Tracks::_tracks_type::iterator mergeTracks(Tracks& tracks,
+                                           const std::vector<Track::_id_type>& ids)
 {
   // getting all the frames, by time
   // and the smallest_id
@@ -157,7 +157,7 @@ void mergeTracks(Tracks& tracks,
 
   // none of the track ids given exists
   if( track_with_smallest_id==tracks.tracks.end() )
-    return;
+    return tracks.tracks.end();
 
   // create the new track. Starting with a new empty track.
   Track new_track;
@@ -189,6 +189,7 @@ void mergeTracks(Tracks& tracks,
 
   // finally, add the track we just created
   tracks.tracks.push_back(new_track);
+  return tracks.tracks.end()-1;
 }
 
 

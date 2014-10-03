@@ -66,9 +66,9 @@ void deleteTrack(Tracks& tracks,
                  Track::_id_type id);
 
 // merge the tracks to the one with the smallest id and remove the others
-void mergeTracks(Tracks& tracks, Track::_id_type id1, Track::_id_type id2);
+Tracks::_tracks_type::iterator mergeTracks(Tracks& tracks, Track::_id_type id1, Track::_id_type id2);
 
-void mergeTracks(Tracks& tracks, const std::vector<Track::_id_type>& ids);
+Tracks::_tracks_type::iterator mergeTracks(Tracks& tracks, const std::vector<Track::_id_type>& ids);
 
 } //namespace track_file_io
 

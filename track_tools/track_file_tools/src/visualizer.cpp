@@ -53,6 +53,7 @@
 
 #include <map>
 #include <vector>
+#include <algorithm>
 
 #include <pcl/visualization/pcl_visualizer.h>
 #include <pcl/visualization/point_cloud_color_handlers.h>
@@ -392,6 +393,7 @@ void viewWholeFrame()
 
   std::stringstream ss;
   ss <<"Timestamp=" <<std::setprecision(16) <<whole_frames_it->first;
+  ss <<", frame number=" <<std::distance<WholeFramesMap::const_iterator>(whole_frames_map.begin(), whole_frames_it);
   actionFeedbackMsg(ss.str());
 }
 

@@ -77,39 +77,69 @@ std::string help(const boost::program_options::options_description &opts_desc)
   ss <<"  m10m11m18: merge track 10, 11 and 18" <<std::endl;
   ss <<"  s10m11m18: select track 10 and merge with 11 and 18" <<std::endl;
   ss <<std::endl;
-  ss <<"If there is at least one selection, then only the selected track will be " <<std::endl;
+  ss <<"If there is at least one selection, then only the selected tracks will be " <<std::endl;
   ss <<"in the resulting track file." <<std::endl;
+  ss <<std::endl;
+  ss <<"Additionally operations support some options:" <<std::endl;
+  ss <<"  - (b) begin and (e) end can be used with (s) select and (m) merge" <<std::endl;
+  ss <<"    to select the tracks between the given frame numbers:" <<std::endl;
+  ss <<"      m10m13e30 will merge tracks 10 and 13 and discard all the frames" <<std::endl;
+  ss <<"        for those tracks after the 30-th frame" <<std::endl;
+  ss <<"      m10m13b5 will merge tracks 10 and 13 and discard all the frames" <<std::endl;
+  ss <<"        for those tracks before the 5-th frame" <<std::endl;
+  ss <<"    The frame number is counted since the first frame in the whole trk file" <<std::endl;
+  ss <<"    as reported by the visualizer." <<std::endl;
+  ss <<"    The frame number supplied to (b) begin and (e) end are inclusive," <<std::endl;
+  ss <<"    i.e. b5e20 keeps frames from 5 to 20 included." <<std::endl;
+  ss <<std::endl;
+  ss <<"Note that for the moment (d) delete and (s) select are not supported." <<std::endl;
+  ss <<"(s) select is treated as (m) merge and (d) delete is ignored." <<std::endl;
+  return ss.str();
 }
 
 
-/* TODO:
- * - add a command to trim a track from t1 to t2. when tracks are far away they
- *   usually look bad, so it be great to be able to keep only the middle part.
- */
-
-
-// global variables
-track_file_io::Tracks itracks;
-std::vector< std::set<track_file_io::Track::_id_type> > track_merge;
-std::set<track_file_io::Track::_id_type> track_delete;
-std::set<track_file_io::Track::_id_type> track_select;
-
+// types
 struct SubCmd
 {
   char code;
-  track_file_io::Track::_id_type track_id;
+  union Argument {
+    track_file_io::Track::_id_type track_id;
+    unsigned frame_nb;
+  } argument;
 };
 
 typedef std::vector< std::set<track_file_io::Track::_id_type> >::iterator TrMrgIt;
 
+struct TimeRange
+{
+  ros::Time bgn, end;
+  TimeRange() : bgn(ros::TIME_MIN), end(ros::TIME_MAX) { }
+};
+
+
+// global variables
+track_file_io::Tracks itracks;
+std::set<ros::Time> frame_times;
+std::vector< std::set<track_file_io::Track::_id_type> > track_merge;
+std::set<track_file_io::Track::_id_type> track_delete;
+std::set<track_file_io::Track::_id_type> track_select;
+std::map<track_file_io::Track::_id_type, TimeRange> time_ranges;
+
+const std::string op_codes("smd"), frame_nb_codes("eb");
+
+
 // forward declaration
+bool isValidCmdCode(char);
+bool isOperation(char);
+bool isFrameNb(char);
 void parseCmds(const std::vector<std::string> &cmds);
 void parseCmd(const std::string &cmd);
 SubCmd parseSubCmd(const std::string &cmd, unsigned &idx);
-void checkCmd(char c);
 track_file_io::Track::_id_type getTrackNb(const std::string &cmd, unsigned &idx);
 TrMrgIt findTrackMerge(track_file_io::Track::_id_type id);
 void process();
+ros::Time getTimeAtFrameNumber(unsigned);
+
 
 
 int main(int argc, char **argv)
@@ -155,6 +185,11 @@ int main(int argc, char **argv)
   }
 
   track_file_io::load(trk_filename, itracks);
+  BOOST_FOREACH(const track_file_io::Track &track, itracks.tracks) {
+    BOOST_FOREACH(const track_file_io::Frame &frame, track.frames) {
+      frame_times.insert(frame.stamp);
+    }
+  }
 
   try {
     parseCmds(cmds);
@@ -172,6 +207,22 @@ int main(int argc, char **argv)
 }
 
 
+
+bool isValidCmdCode(char c)
+{
+  return isOperation(c) || isFrameNb(c);
+}
+
+bool isOperation(char c)
+{
+  return op_codes.find(c)!=std::string::npos;
+}
+
+bool isFrameNb(char c)
+{
+  return frame_nb_codes.find(c)!=std::string::npos;
+}
+
 // parse all commands
 void parseCmds(const std::vector<std::string> &cmds)
 {
@@ -184,6 +235,7 @@ void parseCmds(const std::vector<std::string> &cmds)
 void parseCmd(const std::string &cmd)
 {
   SubCmd target_cmd = {'u',-1};
+  TimeRange time_range;
 
   for(unsigned i=0; i<cmd.size(); )
   {
@@ -194,25 +246,29 @@ void parseCmd(const std::string &cmd)
       std::cerr <<"Select command not supported yet. Treating as merge command." <<std::endl;
     }
 
-    if( track_file_io::find(itracks, c.track_id)==itracks.tracks.end() )
-      throw std::runtime_error( (boost::format("Track %d from command %s could not be found in input tracks") % (c.track_id, cmd.c_str())).str() );
+    static const std::string cmd_codes("smd");
+    if( isOperation(c.code) &&
+        track_file_io::find(itracks, c.argument.track_id)==itracks.tracks.end() )
+      throw std::runtime_error(
+          (boost::format("Track %d from command %s could not be found in input tracks")
+           % (c.argument.track_id, cmd.c_str())).str() );
 
     if( c.code=='m' ) {
       if( target_cmd.code=='u' ) {
         target_cmd = c;
-        const TrMrgIt it2 = findTrackMerge(c.track_id);
+        const TrMrgIt it2 = findTrackMerge(c.argument.track_id);
         if( it2==track_merge.end() ) {
           std::set<track_file_io::Track::_id_type> S;
-          S.insert(c.track_id);
+          S.insert(c.argument.track_id);
           track_merge.push_back(S);
         }
       }
       else if( target_cmd.code=='s' || target_cmd.code=='m' ) {
-        const TrMrgIt it1 = findTrackMerge(target_cmd.track_id);
+        const TrMrgIt it1 = findTrackMerge(target_cmd.argument.track_id);
         assert(it1!=track_merge.end());
-        const TrMrgIt it2 = findTrackMerge(c.track_id);
+        const TrMrgIt it2 = findTrackMerge(c.argument.track_id);
         if( it2==track_merge.end() ) {
-          it1->insert(c.track_id);
+          it1->insert(c.argument.track_id);
         }
         else {
           it1->insert(it2->begin(), it2->end());
@@ -225,29 +281,52 @@ void parseCmd(const std::string &cmd)
       continue;
       if( target_cmd.code!='u' )
         throw std::runtime_error("delete command cannot be combined with another command");
-      track_delete.insert(c.track_id);
+      track_delete.insert(c.argument.track_id);
     }
-    else if( c.code=='s' ) {
+    else if( c.code=='b' ) {
+      time_range.bgn = getTimeAtFrameNumber(c.argument.frame_nb);
+    }
+    else if( c.code=='e' ) {
+      time_range.end = getTimeAtFrameNumber(c.argument.frame_nb);
+    }
+  }
 
+  if( target_cmd.code=='s' || target_cmd.code=='m' ) {
+    const TrMrgIt merge_set_it = findTrackMerge(target_cmd.argument.track_id);
+    assert(merge_set_it!=track_merge.end());
+    assert(!merge_set_it->empty());
+    std::map<track_file_io::Track::_id_type, TimeRange>::iterator time_range_it
+        = time_ranges.end();
+    BOOST_FOREACH(track_file_io::Track::_id_type id, *merge_set_it) {
+      const std::map<track_file_io::Track::_id_type, TimeRange>::iterator it2
+          = time_ranges.find(id);
+      if( it2!=time_ranges.end() ) {
+        time_range_it = it2;
+        it2->second.bgn = std::max(it2->second.bgn, time_range.bgn);
+        it2->second.end = std::min(it2->second.end, time_range.end);
+        break;
+      }
+    }
+    if( time_range_it==time_ranges.end() ) {
+      time_ranges[target_cmd.argument.track_id] = time_range;
     }
   }
 }
 
 SubCmd parseSubCmd(const std::string &cmd, unsigned &idx)
 {
+  if( !isValidCmdCode(cmd[idx]) )
+    throw std::runtime_error( (boost::format("%c is not a recognized command") % cmd[idx]).str() );
   SubCmd c;
-  checkCmd(cmd[idx]);
   c.code = cmd[idx];
   ++idx;
-  c.track_id = getTrackNb(cmd, idx);
+  if( isOperation(c.code) )
+    c.argument.track_id = getTrackNb(cmd, idx);
+  else if( isFrameNb(c.code) )
+    c.argument.frame_nb = getTrackNb(cmd, idx); // using the same function for now...
+  else
+    assert(0);
   return c;
-}
-
-void checkCmd(char c)
-{
-  static const std::string cmd_codes("smd");
-  if( cmd_codes.find(c)==std::string::npos )
-    throw std::runtime_error( (boost::format("%c is not a recognized command") % c).str() );
 }
 
 track_file_io::Track::_id_type getTrackNb(const std::string &cmd, unsigned &idx)
@@ -280,6 +359,31 @@ void process()
     assert(!S.empty());
     std::vector<track_file_io::Track::_id_type> track_ids;
     track_ids.insert(track_ids.end(), S.begin(), S.end());
-    track_file_io::mergeTracks(itracks, track_ids);
+    const track_file_io::Tracks::_tracks_type::iterator track_it =
+        track_file_io::mergeTracks(itracks, track_ids);
+
+    typedef std::map<track_file_io::Track::_id_type, TimeRange>::const_iterator TimeRangesIt;
+    TimeRangesIt time_range_it = time_ranges.end();
+    BOOST_FOREACH(track_file_io::Track::_id_type id, track_ids) {
+      TimeRangesIt it = time_ranges.find(id);
+      if( it!=time_ranges.end() ) {
+        assert( time_range_it==time_ranges.end() );
+        time_range_it = it;
+      }
+    }
+    assert( time_range_it!=time_ranges.end() );
+
+    while( track_it->frames.front().stamp < time_range_it->second.bgn )
+      track_it->frames.erase(track_it->frames.begin());
+    while( track_it->frames.back().stamp > time_range_it->second.end )
+      track_it->frames.pop_back();
   }
+}
+
+ros::Time getTimeAtFrameNumber(unsigned n)
+{
+  assert(n<frame_times.size());
+  std::set<ros::Time>::const_iterator it = frame_times.begin();
+  std::advance(it, n);
+  return *it;
 }

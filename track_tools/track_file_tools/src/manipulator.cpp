@@ -144,16 +144,21 @@ ros::Time getTimeAtFrameNumber(unsigned);
 int main(int argc, char **argv)
 {
   namespace bpo = boost::program_options;
-  bpo::options_description opts_desc("Allowed options");
+  std::string output_filename;
+  bpo::options_description opts_desc("Allowed options"), hidden_opts("hidden");
   opts_desc.add_options()
       ("help,h", "produce help message")
+      ("output,o", bpo::value<std::string>(&output_filename), "name for the output file");
+  hidden_opts.add_options()
       ("args", bpo::value< std::vector<std::string> >(), "the list of files and commands to process");
+  bpo::options_description all_options;
+  all_options.add(opts_desc).add(hidden_opts);
   bpo::positional_options_description pos_opts_desc;
   pos_opts_desc.add("args", -1);
   bpo::variables_map opts;
 
   try {
-    bpo::store(bpo::command_line_parser(argc, argv).options(opts_desc).positional(pos_opts_desc).run(), opts);
+    bpo::store(bpo::command_line_parser(argc, argv).options(all_options).positional(pos_opts_desc).run(), opts);
     if( opts.count("help") ) {
       std::cout << help(opts_desc) << std::endl;
       return 0;
@@ -210,8 +215,9 @@ int main(int argc, char **argv)
     return 1;
   }
 
-  const std::string otrk_filename = trk_filename.substr(0, trk_filename.size()-4) + "-processed.trk";
-  track_file_io::save(otrk_filename, itracks);
+  if( output_filename.empty() )
+    output_filename = trk_filename.substr(0, trk_filename.size()-4) + "-processed.trk";
+  track_file_io::save(output_filename, itracks);
 
   return 0;
 }

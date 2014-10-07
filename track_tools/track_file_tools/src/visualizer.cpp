@@ -88,6 +88,9 @@ ColorType color_type = CT_COLOR;
 enum FrameType { FT_BASE_LINK, FT_DEMEAN, FT_END };
 FrameType frame_type = FT_DEMEAN;
 
+// in whole frame display mode, whether to show the track ids (it slows down the display)
+bool show_track_ids = false;
+
 // redraw needed
 bool refresh = true;
 
@@ -99,6 +102,15 @@ void actionFeedbackMsg(const std::string &msg)
 {
   std::cout <<msg <<std::endl;
   action_feedback_msg = msg;
+}
+
+void actionFeedbackMsgBool(std::string msg, bool state)
+{
+  if( state )
+    msg = std::string("Enabled ") + msg;
+  else
+    msg = std::string("Disabled ") + msg;
+  actionFeedbackMsg(msg);
 }
 
 
@@ -201,6 +213,14 @@ void keyboardCallback(const pcl::visualization::KeyboardEvent& event, void* cook
       refresh = true;
       break;
 
+    case 'k':
+      if( display_mode==DMT_WHOLE ) {
+        show_track_ids = !show_track_ids;
+        actionFeedbackMsgBool("showing track ids", show_track_ids);
+        refresh = true;
+      }
+      break;
+
     case 'h':
       std::cout <<std::endl <<std::endl;
       std::cout <<"Custom keys for the track visualizer:" <<std::endl;
@@ -212,6 +232,7 @@ void keyboardCallback(const pcl::visualization::KeyboardEvent& event, void* cook
       std::cout <<"\tSPACE : change color display" <<std::endl;
       std::cout <<"\t  /   : change reference frame" <<std::endl;
       std::cout <<"\t  v   : change display mode" <<std::endl;
+      std::cout <<"\t  k   : toggle showing track ids (slows down the display when on)" <<std::endl;
       std::cout <<std::endl;
     }
   }
@@ -384,9 +405,11 @@ void viewWholeFrame()
     ss <<frame.trackid();
     visualizer->addPointCloud(cloud, color_h, std::string("track")+ss.str());
 
-    visualizer->addText3D(ss.str(), cloud->points[0], 1,
-                          ((float)rgb.r)/255, ((float)rgb.g/255), ((float)rgb.b/255),
-                          std::string("id")+ss.str());
+    if( show_track_ids ) {
+      visualizer->addText3D(ss.str(), cloud->points[0], 1,
+                            ((float)rgb.r)/255, ((float)rgb.g/255), ((float)rgb.b/255),
+                            std::string("id")+ss.str());
+    }
   }
 
   visualizer->addCoordinateSystem(1);
@@ -394,7 +417,7 @@ void viewWholeFrame()
   std::stringstream ss;
   ss <<"Timestamp=" <<std::setprecision(16) <<whole_frames_it->first;
   ss <<", frame number=" <<std::distance<WholeFramesMap::const_iterator>(whole_frames_map.begin(), whole_frames_it);
-  actionFeedbackMsg(ss.str());
+  visualizer->addText(ss.str(), 0, 30, 15, 1, 1, 1, "stamp_msg");
 }
 
 

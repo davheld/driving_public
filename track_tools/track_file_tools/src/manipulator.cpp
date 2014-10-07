@@ -92,8 +92,7 @@ std::string help(const boost::program_options::options_description &opts_desc)
   ss <<"    The frame number supplied to (b) begin and (e) end are inclusive," <<std::endl;
   ss <<"    i.e. b5e20 keeps frames from 5 to 20 included." <<std::endl;
   ss <<std::endl;
-  ss <<"Note that for the moment (d) delete and (s) select are not supported." <<std::endl;
-  ss <<"(s) select is treated as (m) merge and (d) delete is ignored." <<std::endl;
+  ss <<"Note that for the moment (d) delete is not supported (delete commands are ignored)." <<std::endl;
   return ss.str();
 }
 
@@ -167,6 +166,11 @@ int main(int argc, char **argv)
     return 1;
   }
 
+  if( opts.count("args")==0 ) {
+    std::cerr << help(opts_desc) << std::endl;
+    return 1;
+  }
+
   std::string trk_filename;
   std::vector<std::string> cmds;
 
@@ -182,6 +186,12 @@ int main(int argc, char **argv)
     else {
       cmds.push_back(arg);
     }
+  }
+
+  if( trk_filename.empty() || cmds.empty() ) {
+    std::cerr << "Error: missing track file or command." << std::endl << std::endl;
+    std::cerr << help(opts_desc) << std::endl;
+    return 1;
   }
 
   track_file_io::load(trk_filename, itracks);
@@ -241,19 +251,22 @@ void parseCmd(const std::string &cmd)
   {
     SubCmd c = parseSubCmd(cmd, i);
 
-    if( c.code=='s' ) {
-      c.code = 'm';
-      std::cerr <<"Select command not supported yet. Treating as merge command." <<std::endl;
-    }
-
-    static const std::string cmd_codes("smd");
     if( isOperation(c.code) &&
         track_file_io::find(itracks, c.argument.track_id)==itracks.tracks.end() )
       throw std::runtime_error(
           (boost::format("Track %d from command %s could not be found in input tracks")
            % (c.argument.track_id, cmd.c_str())).str() );
 
-    if( c.code=='m' ) {
+    if( c.code=='s' ) {
+      if( target_cmd.code!='u' )
+        throw std::runtime_error(std::string("(s) select command must come first in \"") + cmd + "\"");
+      target_cmd = c;
+      track_select.insert(c.argument.track_id);
+      std::set<track_file_io::Track::_id_type> S;
+      S.insert(c.argument.track_id);
+      track_merge.push_back(S);
+    }
+    else if( c.code=='m' ) {
       if( target_cmd.code=='u' ) {
         target_cmd = c;
         const TrMrgIt it2 = findTrackMerge(c.argument.track_id);
@@ -265,14 +278,21 @@ void parseCmd(const std::string &cmd)
       }
       else if( target_cmd.code=='s' || target_cmd.code=='m' ) {
         const TrMrgIt it1 = findTrackMerge(target_cmd.argument.track_id);
-        assert(it1!=track_merge.end());
-        const TrMrgIt it2 = findTrackMerge(c.argument.track_id);
-        if( it2==track_merge.end() ) {
-          it1->insert(c.argument.track_id);
+        if( it1==track_merge.end() ) {
+          std::set<track_file_io::Track::_id_type> S;
+          S.insert(target_cmd.argument.track_id);
+          S.insert(c.argument.track_id);
+          track_merge.push_back(S);
         }
         else {
-          it1->insert(it2->begin(), it2->end());
-          track_merge.erase(it2);
+          const TrMrgIt it2 = findTrackMerge(c.argument.track_id);
+          if( it2==track_merge.end() ) {
+            it1->insert(c.argument.track_id);
+          }
+          else {
+            it1->insert(it2->begin(), it2->end());
+            track_merge.erase(it2);
+          }
         }
       }
     }
@@ -351,8 +371,8 @@ TrMrgIt findTrackMerge(track_file_io::Track::_id_type id)
 
 void process()
 {
-  if( !track_delete.empty() || !track_select.empty() ) {
-    std::cerr <<"Not supporting select or delete. Ignoring those and processing only the merges." <<std::endl;
+  if( !track_delete.empty() ) {
+    std::cerr <<"WARNING: not supporting delete yet. Ignoring those." <<std::endl;
   }
 
   BOOST_FOREACH(const std::set<track_file_io::Track::_id_type> S, track_merge) {
@@ -377,6 +397,18 @@ void process()
       track_it->frames.erase(track_it->frames.begin());
     while( track_it->frames.back().stamp > time_range_it->second.end )
       track_it->frames.pop_back();
+  }
+
+  if( !track_select.empty() ) {
+    track_file_io::Tracks stracks;
+    stracks.velodyne_pose = itracks.velodyne_pose;
+    BOOST_FOREACH(track_file_io::Track::_id_type id, track_select) {
+      const track_file_io::Tracks::_tracks_type::const_iterator it =
+          track_file_io::find(itracks, id);
+      assert( it!= itracks.tracks.end() );
+      stracks.tracks.push_back(*it);
+    }
+    itracks = stracks;
   }
 }
 

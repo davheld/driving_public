@@ -52,6 +52,12 @@
 namespace log_and_playback
 {
 
+/*
+  Error Acknowledement - Currently within the Kitti Dataset Timestamp are
+  stored in increments of 1 Million, this should be 100,000. Until the log files are
+  recomputed, the issues will be handled locally in this file. With the ability to
+  correct them back into the desired output being commented into this file as well
+  */
 
 void KittiApplanixReader::open(const std::string & filename)
 {
@@ -71,15 +77,22 @@ void KittiApplanixReader::close(){
   file_.close();
 }
 
-stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::string & line){
+stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::string & line, double smooth_x,
+                                                                double smooth_y, double smooth_z){
   uint64_t epoch_time;
   double data[25];
   char space;
   std::stringstream ss(line);
 
+  //stdr_msgs::ApplanixPose::ConstPtr pose_;
+
   ss >> epoch_time;
 
-  const double ep_time = static_cast<double>(epoch_time) * 1e-9;//* 1e-9;
+  //Temporary Fix please revert to above line
+  //ep_time = static_cast<double>(epoch_time) * 1e-6;
+  double ep_time = static_cast<double>(epoch_time) * 1E-7;
+
+  //const double ep_time = static_cast<double>(epoch_time) * 1e-9;//* 1e-9;
   for(int i=0; i<25; i++){
     ss >> data[i];
   }
@@ -108,9 +121,9 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::strin
 
   if (old_hw_timestamp_ !=0){
     double dt = ep_time - old_hw_timestamp_;
-    pose->smooth_x += pose->vel_east * dt;
-    pose->smooth_y += pose->vel_north * dt;
-    pose->smooth_z += pose->vel_up * dt;
+    pose->smooth_x = smooth_x + pose->vel_east * dt;
+    pose->smooth_y = smooth_y + pose->vel_north * dt;
+    pose->smooth_z = smooth_z + pose->vel_up * dt;
 
   }else{
     pose->smooth_x = 0;
@@ -125,12 +138,20 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(const std::strin
 }
 
 bool KittiApplanixReader::next(){
+  double smooth_x, smooth_y, smooth_z;
+  smooth_x = smooth_y = smooth_z = 0;
+  if(pose_){
+      smooth_x = pose_->smooth_x;
+      smooth_y = pose_->smooth_y;
+      smooth_z = pose_->smooth_z;
+  }
+
   pose_.reset();
 
   while( true )
   {
     if( ok_ && std::getline(stream_, line_) ) {
-      pose_ = parseApplanix(line_);
+      pose_ = parseApplanix(line_, smooth_x, smooth_y, smooth_z);
       if( pose_ ) {
         time_ = pose_->header.stamp;
         return true;
@@ -200,6 +221,10 @@ bool KittiVeloReader::next()
       return ok_;
     }
 
+    //Temporary fix. Delete two line below once log files are fixed
+    t_start = uint64_t(t_start * 1e-1);
+    t_end = uint64_t(t_end * 1e-1);
+
     spin_.reset(new stdr_velodyne::PointCloud);
     spin_->reserve(num_points);
 
@@ -207,6 +232,7 @@ bool KittiVeloReader::next()
     spin_->header.seq = 14;
 
     spin_->header.stamp = t_start;
+
     // Recent Additions
     time_ = pcl_conversions::fromPCL(spin_->header).stamp;
     stdr_velodyne::PointType pt;
@@ -243,11 +269,13 @@ bool KittiVeloReader::next()
       pt.x = x;
       pt.y = y;
       pt.z = z;
-      pt.intensity = intensity;
+      pt.intensity = intensity * 255;
       pt.h_angle = h_angle;
       pt.encoder = encoder;
       pt.v_angle = v_angle;
       pt.beam_id = beam_id -1 ;
+      pt.beam_nb = beam_id - 1; //beam_nb;
+     // pt.timestamp = static_cast<double>(t_start) * 1E-6;
       pt.beam_nb = beam_id - 1;//beam_nb;
       pt.timestamp = time_.toSec();
       pt.distance = distance;

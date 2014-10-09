@@ -63,7 +63,7 @@ http://answers.ros.org/question/11327/argument-for-subscriberstatuscallback-in-a
 */
 
 DataReader data_reader;
-ros::Publisher clock_pub, scans_pub, pose_pub, gps_pub, rms_pub, ladybug_pub;
+ros::Publisher clock_pub, scans_pub, spin_pub, pose_pub, gps_pub, rms_pub, ladybug_pub;
 float rate, start_offset;
 ros::Time start_time, current_time;
 ros::WallTime last_wall_time;
@@ -154,44 +154,31 @@ void timing(const ros::Time & stamp)
 
 void doPublish()
 {
-  {
-    velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader.instantiateVelodyneScans();
-    if( scans ) {
-      timing(scans->header.stamp);
-      scans_pub.publish( *scans );
-    }
+  if( stdr_msgs::ApplanixPose::ConstPtr pose = data_reader.instantiateApplanixPose() ) {
+    timing(pose->header.stamp);
+    pose_pub.publish( *pose );
   }
-
-  {
-    stdr_msgs::ApplanixPose::ConstPtr pose = data_reader.instantiateApplanixPose();
-    if( pose ) {
-      timing(pose->header.stamp);
-      pose_pub.publish( *pose );
-    }
+  else if( velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader.instantiateVelodyneScans() ) {
+    timing(scans->header.stamp);
+    scans_pub.publish( *scans );
   }
-
-  {
-    stdr_msgs::ApplanixGPS::ConstPtr gps = data_reader.instantiateApplanixGPS();
-    if( gps ) {
-      timing(gps->header.stamp);
-      gps_pub.publish( *gps );
-    }
+  else if( stdr_velodyne::PointCloud::ConstPtr spin = data_reader.instantiateVelodyneSpin() ) {
+    std_msgs::Header header;
+    pcl_conversions::fromPCL(spin->header, header);
+    timing(header.stamp);
+    spin_pub.publish( *spin );
   }
-
-  {
-    stdr_msgs::ApplanixRMS::ConstPtr rms = data_reader.instantiateApplanixRMS();
-    if( rms ) {
-      timing(rms->header.stamp);
-      rms_pub.publish( *rms );
-    }
+  else if( stdr_msgs::ApplanixGPS::ConstPtr gps = data_reader.instantiateApplanixGPS() ) {
+    timing(gps->header.stamp);
+    gps_pub.publish( *gps );
   }
-
-  {
-    stdr_msgs::LadybugImages::ConstPtr img = data_reader.instantiateLadybugImages();
-    if( img ) {
-      timing(img->header.stamp);
-      ladybug_pub.publish( *img );
-    }
+  else if( stdr_msgs::ApplanixRMS::ConstPtr rms = data_reader.instantiateApplanixRMS() ) {
+    timing(rms->header.stamp);
+    rms_pub.publish( *rms );
+  }
+  else if( stdr_msgs::LadybugImages::ConstPtr img = data_reader.instantiateLadybugImages() ) {
+    timing(img->header.stamp);
+    ladybug_pub.publish( *img );
   }
 }
 
@@ -203,9 +190,10 @@ void sighandler(int)
 
 int main(int argc, char **argv)
 {
-  ros::init(argc, argv, "dgclog_playback");
+  ros::init(argc, argv, "log_playback");
   ros::NodeHandle nh;
   scans_pub = nh.advertise<velodyne_msgs::VelodyneScan>("/driving/velodyne/packets", 100);
+  spin_pub = nh.advertise<stdr_velodyne::PointCloud>("/driving/velodyne/points", 1);
   pose_pub = nh.advertise<stdr_msgs::ApplanixPose>("/driving/ApplanixPose", 100);
   gps_pub = nh.advertise<stdr_msgs::ApplanixGPS>("/driving/ApplanixGPS", 100);
   rms_pub = nh.advertise<stdr_msgs::ApplanixRMS>("/driving/ApplanixRMS", 100);
@@ -216,17 +204,23 @@ int main(int argc, char **argv)
   opts_desc.add_options()
       ("help,h", "produce help message")
       ("rate,r", bpo::value<float>(&rate)->default_value(1.f), "multiply the publish rate by the given factor")
-      ("start,s", bpo::value<float>(&start_offset)->default_value(0.f), "start arg seconds into the bag files")
-      ("logs", bpo::value< std::vector<std::string> >()->required(), "log files to load (bags or dgc logs)")
-      ;
+      ("start,s", bpo::value<float>(&start_offset)->default_value(0.f), "start arg seconds into the bag files");
+
+  bpo::options_description hidden_opts;
+  hidden_opts.add_options()
+      ("logs", bpo::value< std::vector<std::string> >()->required(), "log files to load (kitti or dgc logs)");
+
+  bpo::options_description all_opts;
+  all_opts.add(opts_desc).add(hidden_opts);
+
   bpo::positional_options_description pos_opts_desc;
   pos_opts_desc.add("logs", -1);
 
   bpo::variables_map opts;
   try {
-    bpo::store(bpo::command_line_parser(argc, argv).options(opts_desc).positional(pos_opts_desc).run(), opts);
+    bpo::store(bpo::command_line_parser(argc, argv).options(all_opts).positional(pos_opts_desc).run(), opts);
     if( opts.count("help") ) {
-      cout << "Usage: dgclog_playback [OPTS] logs" << endl;
+      cout << "Usage: log_playback [OPTS] logs" << endl;
       cout << endl;
       cout << opts_desc << endl;
       return 0;
@@ -235,7 +229,7 @@ int main(int argc, char **argv)
   }
   catch(std::exception & e) {
     ROS_FATAL_STREAM(e.what());
-    cout << "Usage: dgclog_playback [OPTS] logs" << endl;
+    cout << "Usage: log_playback [OPTS] logs" << endl;
     cout << endl;
     cout << opts_desc << endl;
     return 1;
@@ -243,6 +237,36 @@ int main(int argc, char **argv)
 
   ROS_ASSERT_MSG(rate>0, "The rate factor must be >0");
   ROS_ASSERT_MSG(start_offset>=0, "The start offset must be >0");
+
+
+  // if we are playing back kitti files, we need to load the calibration files here
+  // for dgc logs, we publish scans, and so the calibration files will be loaded
+  // by the velodyne processor node.
+
+  bool kitti = false;
+  BOOST_FOREACH(const std::string &log, opts["logs"].as< std::vector<std::string> >()) {
+    if( boost::algorithm::ends_with(log, ".kit") || boost::algorithm::ends_with(log, ".imu") )
+      kitti = true;
+  }
+
+  if( kitti ) {
+    stdr_velodyne::Configuration::Ptr config =
+        stdr_velodyne::Configuration::getStaticConfigurationInstance();
+
+    std::string calibration_file;
+    if( ! ros::param::get("/driving/velodyne/cal_file", calibration_file) )
+      BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
+                              "You must provide a configuration file, either on the command line, or as a rosparam."));
+    config->readCalibration(calibration_file);
+
+    std::string intensity_file;
+    if( ! ros::param::get("/driving/velodyne/int_file", intensity_file) )
+      BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
+                              "You must provide an intensity configuration file, either on the command line, or as a rosparam."));
+    config->readIntensity(intensity_file);
+  }
+
+
 
   data_reader.load( opts["logs"].as< std::vector<std::string> >() );
 

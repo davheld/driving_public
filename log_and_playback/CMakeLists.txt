@@ -48,8 +48,8 @@ endif()
 add_executable(example_spin_reader src/example_spin_reader.cpp)
 target_link_libraries(example_spin_reader ${PROJECT_NAME})
 
-add_executable(dgclog_playback src/dgclog_playback.cpp)
-target_link_libraries(dgclog_playback ${PROJECT_NAME})
+add_executable(log_playback src/log_playback.cpp)
+target_link_libraries(log_playback ${PROJECT_NAME})
 
 add_executable(profile_velodyne src/profile_velodyne.cpp)
 target_link_libraries(profile_velodyne ${PROJECT_NAME} ${GPERFTOOLS_PROFILER})

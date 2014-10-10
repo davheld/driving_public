@@ -47,3 +47,12 @@ target_link_libraries(localize_pose_tf_broadcaster ${PROJECT_NAME})
 
 add_executable(gps_fix_pub src/gps_fix_pub.cpp)
 target_link_libraries(gps_fix_pub ${catkin_LIBRARIES})
+
+install(TARGETS ${PROJECT_NAME}
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}
+)
+
+install(DIRECTORY include/${PROJECT_NAME}/
+  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION})

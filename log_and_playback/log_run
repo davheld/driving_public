@@ -32,7 +32,8 @@ cameratopics = ["/driving/ladybug/images", "/driving/fleaL/image_raw",
 topicstoskip = ["/driving/velodyne/points", "/driving/velodyne/colored",
   "/driving/velodyne/points_agg", "/driving/velodyne/raw_scans",
   "/driving/smooth", "/tf", "/driving/trajectories",
-  "/driving/perception/classification_result", "/driving/perception_velodyne"]
+  "/driving/perception/classification_result", "/driving/perception_velodyne",
+  "/stdr_planner/static_map"]
 
 def skip_topic(t):
   if t.startswith("/driving/ladybug/") or t.startswith("/driving/fleaL") or \

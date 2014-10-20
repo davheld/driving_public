@@ -62,8 +62,6 @@ PacketToPcdNodeBase::PacketToPcdNodeBase(ros::NodeHandle node_handle, ros::NodeH
   }
   config->readIntensity(int_filename);
 
-  GET_ROS_PARAM_WARN(global_handle, "skip_points_on_car", skip_points_on_car_, true);
-
   pub_ = global_handle.advertise<PointCloud>("points", 100);
   sub_ = global_handle.subscribe("packets", 100, &PacketToPcdNodeBase::cb, this);
 }

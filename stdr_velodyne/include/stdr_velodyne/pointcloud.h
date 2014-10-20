@@ -64,14 +64,6 @@ public:
   bool calibrateIntensities() const
   { return calibrate_intensities_; }
 
-  inline
-  PacketToPcd & skipPointsOnCar(bool v)
-  { skip_points_on_car_ = v; return *this; }
-
-  inline
-  bool skipPointsOnCar() const
-  { return skip_points_on_car_; }
-
   /// Converts the packet to a pcd and append the points to the output pcd.
   /// Does not transform to a different frame. And does NOT set the header of
   /// the output point cloud.
@@ -79,7 +71,6 @@ public:
 
 protected:
   bool calibrate_intensities_;
-  bool skip_points_on_car_;
   double max_dist_;
 
   /// static configuration instance

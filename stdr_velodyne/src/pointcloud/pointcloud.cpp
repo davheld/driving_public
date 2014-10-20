@@ -46,9 +46,8 @@ namespace stdr_velodyne {
 
 
 PacketToPcd::PacketToPcd()
-: calibrate_intensities_(true)
-, skip_points_on_car_(true)
-, config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
+  : calibrate_intensities_(true)
+  , config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
 {
   GET_ROS_PARAM_INFO(ros::NodeHandle("/driving/velodyne"), "max_dist", max_dist_, std::numeric_limits<double>::max());
 }
@@ -88,10 +87,6 @@ void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, Poi
       const uint16_t range = tmp.uint;
       const float distance = rcfg.range2dist(range);
 
-      // quickly eliminates the points at the back of the car based on angle and distance
-      if( skip_points_on_car_ && hAngle.cos() < -.5 && distance < 3 )
-        continue;
-
       if( range==0 || distance>max_dist_ )
         continue;
 
@@ -102,10 +97,6 @@ void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, Poi
         pt.intensity = intensity;
 
       rcfg.project(distance, &pt);
-
-      // further eliminates the points on the car based on full coordinates
-      if( skip_points_on_car_ && pt.distance<4 && fabs(pt.y)<1.3 && pt.x<1.5 && pt.x>-3 )
-        continue;
 
       pcd.push_back(pt);
     }

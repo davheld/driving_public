@@ -412,13 +412,6 @@ stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
   bool can_transform = true;
 
   while( ! spinQ_.empty() && ! spin && can_transform ) {
-
-    ROS_DEBUG_STREAM(spinQ_.size() <<" spins in Q.");
-
-    can_transform = tf_listener_.canTransform(target_frame, spinQ_.front()->header.frame_id, pcl_conversions::fromPCL(spinQ_.front()->header).stamp);
-    if( !can_transform )
-      break;
-
     try {
       stdr_velodyne::transform_scan(tf_listener_, target_frame, *spinQ_.front(), velo_smooth);
       spinQ_.pop();
@@ -432,7 +425,6 @@ stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
       ROS_DEBUG_STREAM("transform_scan failed: " <<e.what());
       can_transform = false;
     }
-
   }
 
   // limit the size of the queue. Keep the last 200ms of data
@@ -450,28 +442,23 @@ bool SpinReader::prevSpin()
 
 bool SpinReader::nextSpin()
 {
-  stdr_msgs::ApplanixPose::ConstPtr applanix;
-  stdr_msgs::LocalizePose::ConstPtr localize_pose;
-  stdr_velodyne::PointCloud::ConstPtr pcd;
-  velodyne_msgs::VelodyneScan::ConstPtr scans;
-
   stdr_velodyne::PointCloudPtr spin = processSpinQueue();
   while( !spin && ros::ok() )
   {
     if( !data_reader_->next() )
       return false;
 
-    if( applanix = data_reader_->instantiateApplanixPose() ) {
+    if( const stdr_msgs::ApplanixPose::ConstPtr applanix = data_reader_->instantiateApplanixPose() ) {
       ROS_DEBUG("Adding applanix pose t=%.3f", applanix->header.stamp.toSec());
       tf_listener_.addApplanixPose(*applanix);
     }
-    else if( localize_pose = data_reader_->instantiateLocalizePose() ) {
+    else if( const stdr_msgs::LocalizePose::ConstPtr localize_pose = data_reader_->instantiateLocalizePose() ) {
       tf_listener_.addLocalizePose(*localize_pose);
     }
-    else if( pcd = data_reader_->instantiateVelodyneSpin() ) {
+    else if( const stdr_velodyne::PointCloud::ConstPtr pcd = data_reader_->instantiateVelodyneSpin() ) {
       spinQ_.push(pcd);
     }
-    else if( scans = data_reader_->instantiateVelodyneScans() ) {
+    else if( const velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader_->instantiateVelodyneScans() ) {
       ROS_DEBUG("got raw scan t=%.3f", scans->header.stamp.toSec());
       BOOST_FOREACH(const velodyne_msgs::VelodynePacket & pkt, scans->packets) {
         stdr_velodyne::PointCloud::Ptr pcd_ = boost::make_shared<stdr_velodyne::PointCloud>();

@@ -75,6 +75,11 @@ protected:
 
   /// static configuration instance
   Configuration::ConstPtr config_;
+
+  /// Whether to filter the points that fall on junior
+  bool filter_points_on_car_;
+  /// The box delimiting the points to filter (axis oriented, in velodyne frame)
+  Eigen::Vector3d pt_on_car_max_, pt_on_car_min_;
 };
 
 

@@ -49,7 +49,25 @@ PacketToPcd::PacketToPcd()
   : calibrate_intensities_(true)
   , config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
 {
-  GET_ROS_PARAM_INFO(ros::NodeHandle("/driving/velodyne"), "max_dist", max_dist_, std::numeric_limits<double>::max());
+  ros::NodeHandle nh("/driving/velodyne");
+
+  GET_ROS_PARAM_INFO(nh, "max_dist", max_dist_, std::numeric_limits<double>::max());
+
+  // ideally the box would be defined in base_link coordinates, and its velodyne
+  // coordinates would be computed according to the pose of the velodyne.
+  // However, in this node we don't have access to the velodyne extrinsincs.
+  // So for now we define the box directly in velodyne frame.
+  GET_ROS_PARAM_INFO(nh, "filter_points_on_car", filter_points_on_car_, false);
+  if( filter_points_on_car_ ) {
+    pt_on_car_min_ = Eigen::Vector3d(
+          stdr::get_rosparam<double>(nh, "car_bb_min/x"),
+          stdr::get_rosparam<double>(nh, "car_bb_min/y"),
+          stdr::get_rosparam<double>(nh, "car_bb_min/z"));
+    pt_on_car_max_ = Eigen::Vector3d(
+          stdr::get_rosparam<double>(nh, "car_bb_max/x"),
+          stdr::get_rosparam<double>(nh, "car_bb_max/y"),
+          stdr::get_rosparam<double>(nh, "car_bb_max/z"));
+  }
 }
 
 void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, PointCloud& pcd) const
@@ -97,6 +115,12 @@ void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, Poi
         pt.intensity = intensity;
 
       rcfg.project(distance, &pt);
+
+      if( filter_points_on_car_
+          && pt.x > pt_on_car_min_.x() && pt.x < pt_on_car_max_.x()
+          && pt.y > pt_on_car_min_.y() && pt.y < pt_on_car_max_.y()
+          && pt.z > pt_on_car_min_.z() && pt.z < pt_on_car_max_.z() )
+        continue;
 
       pcd.push_back(pt);
     }

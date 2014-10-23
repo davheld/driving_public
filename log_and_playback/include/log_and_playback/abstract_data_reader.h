@@ -47,6 +47,9 @@
 #include <stdr_msgs/ApplanixRMS.h>
 #include <stdr_msgs/LocalizePose.h>
 #include <stdr_msgs/LadybugImages.h>
+#include <stdr_msgs/EStopStatus.h>
+#include <stdr_msgs/PassatStatus.h>
+#include <stdr_msgs/Trajectory2D.h>
 #include <stdr_velodyne/point_type.h>
 
 
@@ -85,6 +88,15 @@ public:
 
   virtual stdr_msgs::LocalizePose::ConstPtr instantiateLocalizePose() const
   { return stdr_msgs::LocalizePose::ConstPtr(); }
+
+  virtual stdr_msgs::EStopStatus::ConstPtr instantiateEStopStatus() const
+  { return stdr_msgs::EStopStatus::ConstPtr(); }
+
+  virtual stdr_msgs::PassatStatus::ConstPtr instantiatePassatStatus() const
+  { return stdr_msgs::PassatStatus::ConstPtr(); }
+
+  virtual stdr_msgs::Trajectory2D::ConstPtr instantiateTrajectory2D() const
+  { return stdr_msgs::Trajectory2D::ConstPtr(); }
 };
 
 

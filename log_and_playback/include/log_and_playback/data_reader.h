@@ -208,8 +208,7 @@ public:
   /// otherwise from rosparam. Throws a runtime_error if none of them is set.
   virtual void loadTFMFromProgramOptions(const boost::program_options::variables_map & vm);
 
-
-private:
+protected:
   bool do_I_own_the_data_reader_;
   AbstractDataReader * data_reader_;
 

@@ -83,6 +83,15 @@ public:
   stdr_msgs::LocalizePose::ConstPtr instantiateLocalizePose() const
   { return bag_it_->instantiate<stdr_msgs::LocalizePose>(); }
 
+  stdr_msgs::EStopStatus::ConstPtr instantiateEStopStatus() const
+  { return bag_it_->instantiate<stdr_msgs::EStopStatus>(); }
+
+  stdr_msgs::PassatStatus::ConstPtr instantiatePassatStatus() const
+  { return bag_it_->instantiate<stdr_msgs::PassatStatus>(); }
+
+  stdr_msgs::Trajectory2D::ConstPtr instantiateTrajectory2D() const
+  { return bag_it_->instantiate<stdr_msgs::Trajectory2D>(); }
+
 private:
   std::vector< boost::shared_ptr<rosbag::Bag> > bags_;
   boost::shared_ptr<rosbag::View> view_;

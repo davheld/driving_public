@@ -387,8 +387,10 @@ void SpinReader::setDataReader(AbstractDataReader & reader)
 
 void SpinReader::unsetDataReader()
 {
-  if( do_I_own_the_data_reader_ && data_reader_ )
+  if( do_I_own_the_data_reader_ && data_reader_ ) {
     delete data_reader_;
+    data_reader_ = NULL;
+  }
 }
 
 void SpinReader::load(const std::vector< std::string > &logs, ros::Duration skip)

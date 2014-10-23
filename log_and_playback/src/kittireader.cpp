@@ -35,19 +35,15 @@
   DAMAGE.
  ********************************************************/
 
-#include "log_and_playback/kittireader.h"
+#include <typeinfo>
+
 #include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
+#include <boost/static_assert.hpp>
 
-#include <stdr_lib/exception.h>
-#include <blf/vlf.h>
-#include <stdr_velodyne/conversion.h>
-#include <ladybug_playback/frame_separator.h>
+#include <stdr_lib/rosparam_helpers.h>
+#include <log_and_playback/kittireader.h>
 
-#include <velodyne_pointcloud/rawdata.h>
-#include <stdr_velodyne/pointcloud.h>
-#include <stdr_velodyne/point_type.h>
-#include <stdr_velodyne/config.h>
 
 namespace log_and_playback
 {
@@ -182,16 +178,36 @@ KittiApplanixReader::instantiateApplanixPose() const
 
 
 
-KittiVeloReader::~KittiVeloReader()
-{
-  close();
-}
 
 KittiVeloReader::KittiVeloReader()
-{
+{  
+  ros::NodeHandle nh("/driving/velodyne");
+
+  // ideally the box would be defined in base_link coordinates, and its velodyne
+  // coordinates would be computed according to the pose of the velodyne.
+  // However, in this node we don't have access to the velodyne extrinsincs.
+  // So for now we define the box directly in velodyne frame.
+  GET_ROS_PARAM_INFO(nh, "filter_points_on_car", filter_points_on_car_, false);
+  if( filter_points_on_car_ ) {
+    pt_on_car_min_ = Eigen::Vector3d(
+          stdr::get_rosparam<double>(nh, "car_bb_min/x"),
+          stdr::get_rosparam<double>(nh, "car_bb_min/y"),
+          stdr::get_rosparam<double>(nh, "car_bb_min/z"));
+    pt_on_car_max_ = Eigen::Vector3d(
+          stdr::get_rosparam<double>(nh, "car_bb_max/x"),
+          stdr::get_rosparam<double>(nh, "car_bb_max/y"),
+          stdr::get_rosparam<double>(nh, "car_bb_max/z"));
+  }
+
+
   config_ = stdr_velodyne::Configuration::getStaticConfigurationInstance();
   ok_ = false;
   spin_ = boost::make_shared<stdr_velodyne::PointCloud>();
+}
+
+KittiVeloReader::~KittiVeloReader()
+{
+  close();
 }
 
 void KittiVeloReader::open(const std::string & filename)
@@ -211,86 +227,84 @@ bool KittiVeloReader::next()
   ROS_ASSERT(config_);
   ROS_ASSERT(config_->valid());
 
-  if( !vfile_ && vfile_.good())
-    return false;
-
-  unsigned int num_points;
-  uint64_t t_start, t_end;
-
-  try {
-    vfile_.read((char *)(&num_points), sizeof(num_points));
-    vfile_.read((char *)(&t_start), sizeof(t_start));
-    vfile_.read((char *)(&t_end), sizeof(t_end));
-
-    if(!vfile_.good()) {
-      ok_ = false;
-      return ok_;
-    }
-
-    //Temporary fix. Delete two line below once log files are fixed
-    // tag: TIMING_ERROR
-    t_start = uint64_t(t_start * 1e-1);
-    t_end = uint64_t(t_end * 1e-1);
-
-    spin_.reset(new stdr_velodyne::PointCloud);
-    spin_->reserve(num_points);
-
-    spin_->header.frame_id = "velodyne";
-    spin_->header.seq = 14;
-
-    spin_->header.stamp = t_start;
-
-    // Recent Additions
-    time_ = pcl_conversions::fromPCL(spin_->header).stamp;
-    stdr_velodyne::PointType pt;
-
-    float x,y,z;
-    float intensity;
-    float distance;
-    float h_angle, v_angle;
-    uint8_t beam_id, beam_nb;
-    uint16_t encoder;
-    uint32_t rgb;
-
-    for( int i =0; i< num_points; i++) {
-
-      // load point info from .kit file
-      vfile_.read((char *)(&x), sizeof(x));
-      vfile_.read((char *)(&y), sizeof(y));
-      vfile_.read((char *)(&z), sizeof(z));
-      vfile_.read((char *)(&intensity), sizeof(intensity));
-      vfile_.read((char *)(&h_angle), sizeof(h_angle));
-      vfile_.read((char *)(&beam_id), sizeof(beam_id));
-      vfile_.read((char *)(&distance), sizeof(distance));
-
-      const stdr_velodyne::RingConfig & rcfg = config_->getRingConfig(beam_id - 1);
-      v_angle = rcfg.vert_angle_.getRads();
-      beam_nb = config_->getBeamNumber(beam_id);
-      encoder = (uint16_t)(h_angle* 100);
-
-      // update point data
-      pt.x = x;
-      pt.y = y;
-      pt.z = z;
-      pt.intensity = intensity * 255;
-      pt.h_angle = h_angle;
-      pt.encoder = encoder;
-      pt.v_angle = v_angle;
-      pt.beam_id = beam_id -1 ;
-      pt.beam_nb = beam_id - 1; //beam_nb;
-      // pt.timestamp = static_cast<double>(t_start) * 1E-6;
-      pt.beam_nb = beam_id - 1;//beam_nb;
-      pt.timestamp = time_.toSec();
-      pt.distance = distance;
-      // add to pointcloud
-      spin_->push_back(pt);
-    }
-
-  }
-  catch (stdr::ex::IOError& e) {
+  if( !vfile_ ) {
     ok_ = false;
-    return ok_;
+    return false;
   }
+
+  uint32_t num_points;
+  uint64_t t_start, t_end;
+  vfile_.read((char *)(&num_points), sizeof(uint32_t));
+
+  if( num_points > 200000 ) {
+    ROS_ERROR_STREAM("Got a spin with " <<num_points <<" points. This is probably the end of the file");
+    ok_ = false;
+    return false;
+  }
+
+  vfile_.read((char *)(&t_start), sizeof(uint64_t));
+  vfile_.read((char *)(&t_end), sizeof(uint64_t));
+
+  //Temporary fix. Delete two line below once log files are fixed
+  // tag: TIMING_ERROR
+  t_start = uint64_t(t_start * 1e-1);
+  t_end = uint64_t(t_end * 1e-1);
+
+  spin_.reset(new stdr_velodyne::PointCloud);
+  spin_->reserve(num_points);
+
+  spin_->header.frame_id = "velodyne";
+  spin_->header.seq = 14;
+  spin_->header.stamp = t_start;
+
+  time_ = pcl_conversions::fromPCL(spin_->header).stamp;
+
+  // these would be better as static assert but I could not find how to do that...
+  stdr_velodyne::PointType pt;
+  ROS_ASSERT( typeid(pt.x)==typeid(float) );
+  ROS_ASSERT( typeid(pt.h_angle)==typeid(float) );
+  ROS_ASSERT( typeid(pt.distance)==typeid(float) );
+  ROS_ASSERT( typeid(pt.beam_id)==typeid(uint8_t) );
+
+  pt.timestamp = time_.toSec(); //TODO interpolate for each point using the h_angle information
+
+  for( int i =0; i< num_points; i++) {
+    float intensity;
+
+    vfile_.read((char *)(&pt.x), sizeof(float));
+    vfile_.read((char *)(&pt.y), sizeof(float));
+    vfile_.read((char *)(&pt.z), sizeof(float));
+    vfile_.read((char *)(&intensity), sizeof(float));
+    vfile_.read((char *)(&pt.h_angle), sizeof(float));
+    vfile_.read((char *)(&pt.beam_id), sizeof(uint8_t));
+    vfile_.read((char *)(&pt.distance), sizeof(float));
+
+    if( !vfile_ ) {
+      ok_ = false;
+      return false;
+    }
+
+    if(pt.beam_id==0 || pt.beam_id-1>=stdr_velodyne::NUM_LASERS)
+      continue;
+
+    const stdr_velodyne::RingConfig & rcfg = config_->getRingConfig(pt.beam_id - 1);
+
+    pt.intensity = intensity * 255;
+    pt.encoder = pt.h_angle * 100;
+    pt.v_angle = rcfg.vert_angle_.getRads();
+    pt.beam_id = pt.beam_id - 1;
+    pt.beam_nb = pt.beam_id - 1; //config_->getBeamNumber(pt.beam_id);
+
+    if( filter_points_on_car_
+        && pt.x > pt_on_car_min_.x() && pt.x < pt_on_car_max_.x()
+        && pt.y > pt_on_car_min_.y() && pt.y < pt_on_car_max_.y()
+        && pt.z > pt_on_car_min_.z() && pt.z < pt_on_car_max_.z() )
+      continue;
+
+    // add to pointcloud
+    spin_->push_back(pt);
+  }
+
 
   ok_ = true;
   return ok_;

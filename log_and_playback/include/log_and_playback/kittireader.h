@@ -4,17 +4,15 @@
 #include <string>
 #include <iostream>
 #include <fstream>
+
 #include <boost/iostreams/filtering_stream.hpp>
 #include <boost/iostreams/filter/gzip.hpp>
 
-#include <blf/llf.h>
-
 #include <log_and_playback/abstract_data_reader.h>
 
-#include <stdr_velodyne/message_filter.h>
-#include <stdr_velodyne/pointcloud.h>
+#include <stdr_velodyne/point_type.h>
 #include <stdr_velodyne/config.h>
-//#include <log_and_playback/dgclog_reader.h>
+
 
 namespace log_and_playback
 {
@@ -74,6 +72,11 @@ private:
   stdr_velodyne::PointCloud::Ptr spin_;
   ros::Time time_;
   bool ok_;
+
+  /// Whether to filter the points that fall on junior
+  bool filter_points_on_car_;
+  /// The box delimiting the points to filter (axis oriented, in velodyne frame)
+  Eigen::Vector3d pt_on_car_max_, pt_on_car_min_;
 };
 
 

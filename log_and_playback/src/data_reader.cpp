@@ -459,6 +459,7 @@ bool SpinReader::prevSpin()
 
 bool SpinReader::nextSpin()
 {
+  current_spin_.reset();
   stdr_velodyne::PointCloudPtr spin = processSpinQueue();
   while( !spin && ros::ok() )
   {

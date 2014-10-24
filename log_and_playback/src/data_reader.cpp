@@ -235,6 +235,21 @@ stdr_msgs::LocalizePose::ConstPtr DataReader::instantiateLocalizePose() const
   FUNC_BODY(stdr_msgs::LocalizePose, instantiateLocalizePose);
 }
 
+stdr_msgs::EStopStatus::ConstPtr DataReader::instantiateEStopStatus() const
+{
+  FUNC_BODY(stdr_msgs::EStopStatus, instantiateEStopStatus);
+}
+
+stdr_msgs::PassatStatus::ConstPtr DataReader::instantiatePassatStatus() const
+{
+  FUNC_BODY(stdr_msgs::PassatStatus, instantiatePassatStatus);
+}
+
+stdr_msgs::Trajectory2D::ConstPtr DataReader::instantiateTrajectory2D() const
+{
+  FUNC_BODY(stdr_msgs::Trajectory2D, instantiateTrajectory2D);
+}
+
 
 void BagTFListener::addApplanixPose(const stdr_msgs::ApplanixPose & pose)
 {

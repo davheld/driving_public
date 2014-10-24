@@ -77,6 +77,9 @@ public:
   stdr_velodyne::PointCloud::ConstPtr instantiateVelodyneSpin() const;
   stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const;
   stdr_msgs::LocalizePose::ConstPtr instantiateLocalizePose() const;
+  stdr_msgs::EStopStatus::ConstPtr instantiateEStopStatus() const;
+  stdr_msgs::PassatStatus::ConstPtr instantiatePassatStatus() const;
+  stdr_msgs::Trajectory2D::ConstPtr instantiateTrajectory2D() const;
 
 private:
   std::vector< boost::shared_ptr<AbstractDataReader> > readers_;

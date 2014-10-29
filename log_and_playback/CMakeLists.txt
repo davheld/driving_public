@@ -29,7 +29,6 @@ add_library(${PROJECT_NAME}
   src/dgclog_reader.cpp
   src/data_reader.cpp
   src/kittireader.cpp
-  src/imu_kitti.cpp
 
   include/log_and_playback/abstract_data_reader.h
   include/log_and_playback/bag_reader.h
@@ -59,12 +58,6 @@ target_link_libraries(bag2dgc ${PROJECT_NAME})
 
 add_executable(split_bags src/split_bags.cpp)
 target_link_libraries(split_bags ${catkin_LIBRARIES})
-
-add_executable(imukitti src/imu_kitti.cpp)
-target_link_libraries(imukitti ${PROJECT_NAME})
-
-add_executable(imukitti2 src/imu_kitti2.cpp)
-target_link_libraries(imukitti2 ${PROJECT_NAME})
 
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

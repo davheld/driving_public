@@ -213,6 +213,7 @@ KittiVeloReader::~KittiVeloReader()
 void KittiVeloReader::open(const std::string & filename)
 {
   vfile_.open(filename.c_str());
+  ROS_ASSERT(vfile_);
   ok_ = true;
 }
 
@@ -232,74 +233,79 @@ bool KittiVeloReader::next()
     return false;
   }
 
-  uint32_t num_points;
-  uint64_t t_start, t_end;
-  vfile_.read((char *)(&num_points), sizeof(uint32_t));
+  struct __attribute__ ((__packed__)) Header {
+    uint32_t num_points;
+    uint64_t t_start, t_end;
+  } header;
 
-  if( num_points > 200000 ) {
-    ROS_ERROR_STREAM("Got a spin with " <<num_points <<" points. This is probably the end of the file");
+  vfile_.read((char *)(&header), sizeof(Header));
+
+  if( !vfile_ ) {
     ok_ = false;
     return false;
   }
 
-  vfile_.read((char *)(&t_start), sizeof(uint64_t));
-  vfile_.read((char *)(&t_end), sizeof(uint64_t));
+  if( header.num_points > 200000 ) {
+    ROS_ERROR_STREAM("Got a spin with " <<header.num_points <<" points. This is probably the end of the file");
+    ok_ = false;
+    return false;
+  }
+
 
   //Temporary fix. Delete two line below once log files are fixed
   // tag: TIMING_ERROR
-  t_start = uint64_t(t_start * 1e-1);
-  t_end = uint64_t(t_end * 1e-1);
+  header.t_start = uint64_t(header.t_start * 1e-1);
+  header.t_end = uint64_t(header.t_end * 1e-1);
 
   spin_.reset(new stdr_velodyne::PointCloud);
-  spin_->reserve(num_points);
+  spin_->reserve(header.num_points);
 
   spin_->header.frame_id = "velodyne";
   spin_->header.seq = 14;
-  spin_->header.stamp = t_start;
+  spin_->header.stamp = header.t_start;
 
   time_ = pcl_conversions::fromPCL(spin_->header).stamp;
 
-  // these would be better as static assert but I could not find how to do that...
-  stdr_velodyne::PointType pt;
-  ROS_ASSERT( typeid(pt.x)==typeid(float) );
-  ROS_ASSERT( typeid(pt.h_angle)==typeid(float) );
-  ROS_ASSERT( typeid(pt.distance)==typeid(float) );
-  ROS_ASSERT( typeid(pt.beam_id)==typeid(uint8_t) );
 
+  struct __attribute__ ((__packed__)) Point {
+    float x, y, z;
+    float intensity, h_angle;
+    uint8_t beam_id;
+    float distance;
+  } point;
+
+  stdr_velodyne::PointType pt;
   pt.timestamp = time_.toSec(); //TODO interpolate for each point using the h_angle information
 
-  for( int i =0; i< num_points; i++) {
-    float intensity;
-
-    vfile_.read((char *)(&pt.x), sizeof(float));
-    vfile_.read((char *)(&pt.y), sizeof(float));
-    vfile_.read((char *)(&pt.z), sizeof(float));
-    vfile_.read((char *)(&intensity), sizeof(float));
-    vfile_.read((char *)(&pt.h_angle), sizeof(float));
-    vfile_.read((char *)(&pt.beam_id), sizeof(uint8_t));
-    vfile_.read((char *)(&pt.distance), sizeof(float));
+  for( int i =0; i<header.num_points; i++) {
+    vfile_.read((char *)(&point), sizeof(Point));
 
     if( !vfile_ ) {
       ok_ = false;
       return false;
     }
 
-    if(pt.beam_id==0 || pt.beam_id-1>=stdr_velodyne::NUM_LASERS)
+    if(point.beam_id==0 || point.beam_id-1>=stdr_velodyne::NUM_LASERS)
       continue;
-
-    const stdr_velodyne::RingConfig & rcfg = config_->getRingConfig(pt.beam_id - 1);
-
-    pt.intensity = intensity * 255;
-    pt.encoder = pt.h_angle * 100;
-    pt.v_angle = rcfg.vert_angle_.getRads();
-    pt.beam_id = pt.beam_id - 1;
-    pt.beam_nb = pt.beam_id - 1; //config_->getBeamNumber(pt.beam_id);
 
     if( filter_points_on_car_
-        && pt.x > pt_on_car_min_.x() && pt.x < pt_on_car_max_.x()
-        && pt.y > pt_on_car_min_.y() && pt.y < pt_on_car_max_.y()
-        && pt.z > pt_on_car_min_.z() && pt.z < pt_on_car_max_.z() )
+        && point.x > pt_on_car_min_.x() && point.x < pt_on_car_max_.x()
+        && point.y > pt_on_car_min_.y() && point.y < pt_on_car_max_.y()
+        && point.z > pt_on_car_min_.z() && point.z < pt_on_car_max_.z() )
       continue;
+
+    const stdr_velodyne::RingConfig & rcfg = config_->getRingConfig(point.beam_id - 1);
+
+    pt.x = point.x;
+    pt.y = point.y;
+    pt.z = point.z;
+    pt.intensity = point.intensity * 255;
+    pt.h_angle = point.h_angle;
+    pt.encoder = pt.h_angle * 100;
+    pt.v_angle = rcfg.vert_angle_.getRads();
+    pt.beam_id = point.beam_id - 1;
+    pt.beam_nb = point.beam_id - 1; //config_->getBeamNumber(pt.beam_id);
+    pt.distance = point.distance;
 
     // add to pointcloud
     spin_->push_back(pt);

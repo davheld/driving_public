@@ -261,7 +261,6 @@ bool KittiVeloReader::next()
   spin_->reserve(header.num_points);
 
   spin_->header.frame_id = "velodyne";
-  spin_->header.seq = 14;
   spin_->header.stamp = header.t_start;
 
   time_ = pcl_conversions::fromPCL(spin_->header).stamp;

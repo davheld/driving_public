@@ -130,7 +130,8 @@ public:
 class BagTFListener : public tf::TransformerHelper
 {
 public:
-  BagTFListener() : broadcast_(false), from_localize_pose_(false) {}
+  BagTFListener() : broadcast_(false), from_localize_pose_(false), initialized_(false) {}
+  bool initialized() const { return initialized_; }
   void broadcast() { broadcast_ = true; }
   void useLocalizePose() { from_localize_pose_ = true; }
 
@@ -152,6 +153,7 @@ private:
   tf::TransformBroadcaster broadcaster_;
   localize::ApplanixTransformer app_trans_;
   localize::FakeLocalizer fake_localizer_;
+  bool initialized_;
 
   void handleStaticTransforms(const ros::Time & stamp);
 };
@@ -230,6 +232,9 @@ protected:
 
   /// Check whether spins in the Q can be transformed to the smooth frame.
   stdr_velodyne::PointCloudPtr processSpinQueue();
+
+private:
+  bool next();
 };
 
 } //namespace log_and_playback

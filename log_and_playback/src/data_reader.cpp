@@ -279,6 +279,7 @@ void BagTFListener::addLocalizePose(const stdr_msgs::LocalizePose & pose)
   fake_localizer_.addToTransformer(*this, "bag");
   if( broadcast_ )
     fake_localizer_.broadcast(broadcaster_);
+  handleStaticTransforms(pose.header.stamp);
 }
 
 void BagTFListener::addTFMsg(const tf::tfMessage & msg)
@@ -302,6 +303,7 @@ void BagTFListener::handleStaticTransforms(const ros::Time & stamp)
     setTransform(t, "bag");
     if( broadcast_ ) broadcaster_.sendTransform(t);
   }
+  initialized_ = true;
 }
 
 void BagTFListener::addStaticTransform(const tf::StampedTransform & t)
@@ -414,6 +416,9 @@ void SpinReader::load(const std::vector< std::string > &logs, ros::Duration skip
   data_reader_ = new DataReader();
   do_I_own_the_data_reader_ = true;
   ((DataReader *)data_reader_)->load(logs, skip);
+
+  // read some data, until we get the tf static frames
+  while( ros::ok() && !tf_listener_.initialized() && next() );
 }
 
 stdr_velodyne::PointCloudConstPtr SpinReader::getSpin() const
@@ -463,35 +468,41 @@ bool SpinReader::nextSpin()
   stdr_velodyne::PointCloudPtr spin = processSpinQueue();
   while( !spin && ros::ok() )
   {
-    if( !data_reader_->next() )
+    if( !next() )
       return false;
-
-    if( const stdr_msgs::ApplanixPose::ConstPtr applanix = data_reader_->instantiateApplanixPose() ) {
-      ROS_DEBUG("Adding applanix pose t=%.3f", applanix->header.stamp.toSec());
-      tf_listener_.addApplanixPose(*applanix);
-    }
-    else if( const stdr_msgs::LocalizePose::ConstPtr localize_pose = data_reader_->instantiateLocalizePose() ) {
-      tf_listener_.addLocalizePose(*localize_pose);
-    }
-    else if( const stdr_velodyne::PointCloud::ConstPtr pcd = data_reader_->instantiateVelodyneSpin() ) {
-      spinQ_.push(pcd);
-    }
-    else if( const velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader_->instantiateVelodyneScans() ) {
-      ROS_DEBUG("got raw scan t=%.3f", scans->header.stamp.toSec());
-      BOOST_FOREACH(const velodyne_msgs::VelodynePacket & pkt, scans->packets) {
-        stdr_velodyne::PointCloud::Ptr pcd_ = boost::make_shared<stdr_velodyne::PointCloud>();
-        packet2pcd_convertor_.processPacket(pkt, *pcd_);
-        std_msgs::Header h(scans->header);
-        h.stamp = pkt.stamp;
-        pcl_conversions::toPCL(h, pcd_->header);
-        spinQ_.push(pcd_);
-      }
-    }
-
     spin = processSpinQueue();
   }
 
   return spin;
+}
+
+bool SpinReader::next()
+{
+  if( !data_reader_->next() )
+    return false;
+
+  if( const stdr_msgs::ApplanixPose::ConstPtr applanix = data_reader_->instantiateApplanixPose() ) {
+    ROS_DEBUG("Adding applanix pose t=%.3f", applanix->header.stamp.toSec());
+    tf_listener_.addApplanixPose(*applanix);
+  }
+  else if( const stdr_msgs::LocalizePose::ConstPtr localize_pose = data_reader_->instantiateLocalizePose() ) {
+    tf_listener_.addLocalizePose(*localize_pose);
+  }
+  else if( const stdr_velodyne::PointCloud::ConstPtr pcd = data_reader_->instantiateVelodyneSpin() ) {
+    spinQ_.push(pcd);
+  }
+  else if( const velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader_->instantiateVelodyneScans() ) {
+    ROS_DEBUG("got raw scan t=%.3f", scans->header.stamp.toSec());
+    BOOST_FOREACH(const velodyne_msgs::VelodynePacket & pkt, scans->packets) {
+      stdr_velodyne::PointCloud::Ptr pcd_ = boost::make_shared<stdr_velodyne::PointCloud>();
+      packet2pcd_convertor_.processPacket(pkt, *pcd_);
+      std_msgs::Header h(scans->header);
+      h.stamp = pkt.stamp;
+      pcl_conversions::toPCL(h, pcd_->header);
+      spinQ_.push(pcd_);
+    }
+  }
+  return true;
 }
 
 void SpinReader::loadCalibrationFromProgramOptions(const bpo::variables_map & vm)

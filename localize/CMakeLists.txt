@@ -3,7 +3,7 @@ project(localize)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 find_package(catkin REQUIRED COMPONENTS
-  roscpp tf diagnostic_updater stdr_msgs global_coords
+  roscpp rosbag_storage tf diagnostic_updater stdr_msgs global_coords
 )
 
 find_package(Boost REQUIRED COMPONENTS thread)
@@ -13,7 +13,7 @@ find_package(OpenCV REQUIRED COMPONENTS highgui)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES localize
-  CATKIN_DEPENDS roscpp tf diagnostic_updater stdr_msgs global_coords
+  CATKIN_DEPENDS roscpp rosbag_storage tf diagnostic_updater stdr_msgs global_coords
   DEPENDS Boost
 )
 
@@ -47,6 +47,9 @@ target_link_libraries(localize_pose_tf_broadcaster ${PROJECT_NAME})
 
 add_executable(gps_fix_pub src/gps_fix_pub.cpp)
 target_link_libraries(gps_fix_pub ${catkin_LIBRARIES})
+
+add_executable(add_gps_offset src/add_gps_offset.cpp)
+target_link_libraries(add_gps_offset ${catkin_LIBRARIES})
 
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

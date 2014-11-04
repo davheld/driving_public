@@ -3,7 +3,7 @@ project(log_and_playback)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 find_package(catkin REQUIRED COMPONENTS
-  roscpp urdf kdl_parser tf_conversions
+  roscpp rosbag_storage urdf kdl_parser tf_conversions
   stdr_msgs stdr_lib blf dgc_transform localize stdr_velodyne ladybug_playback
 )
 
@@ -16,7 +16,7 @@ find_package(Gperftools REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
-  CATKIN_DEPENDS roscpp urdf kdl_parser tf_conversions
+  CATKIN_DEPENDS roscpp rosbag_storage urdf kdl_parser tf_conversions
     stdr_msgs stdr_lib blf dgc_transform localize stdr_velodyne ladybug_playback
   DEPENDS Boost
 )

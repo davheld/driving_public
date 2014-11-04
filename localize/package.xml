@@ -22,12 +22,14 @@
   <buildtool_depend>catkin</buildtool_depend>
 
   <build_depend>roscpp</build_depend>
+  <build_depend>rosbag_storage</build_depend>
   <build_depend>tf</build_depend>
   <build_depend>diagnostic_updater</build_depend>
   <build_depend>stdr_msgs</build_depend>
   <build_depend>global_coords</build_depend>
 
   <run_depend>roscpp</run_depend>
+  <run_depend>rosbag_storage</run_depend>
   <run_depend>tf</run_depend>
   <run_depend>diagnostic_updater</run_depend>
   <run_depend>stdr_msgs</run_depend>

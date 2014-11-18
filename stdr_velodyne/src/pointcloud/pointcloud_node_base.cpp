@@ -54,7 +54,7 @@ PacketToPcdNodeBase::PacketToPcdNodeBase(ros::NodeHandle node_handle, ros::NodeH
   GET_ROS_PARAM_ABORT(global_handle, "cal_file", cal_filename);
   config->readCalibration(cal_filename);
 
-  GET_ROS_PARAM_WARN(global_handle, "calibrate_intensities", calibrate_intensities_, false);
+  GET_ROS_PARAM_WARN(global_handle, "calibrate_intensities", calibrate_intensities_, true);
 
   if( ! global_handle.getParam("int_file", int_filename) && calibrate_intensities_ ) {
     ROS_FATAL("Could not get calibration file from rosparam");

@@ -72,6 +72,10 @@ set_target_properties(stdr_velodyne_aggregator_node
 # make sure configure headers are built before using them
 add_dependencies(stdr_velodyne_aggregator_node ${PROJECT_NAME}_gencfg)
 
+add_executable(fake_velodyne_pcd src/fake_velodyne_pcd.cpp)
+target_link_libraries(fake_velodyne_pcd ${PROJECT_NAME})
+
+
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

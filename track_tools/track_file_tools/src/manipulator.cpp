@@ -180,7 +180,7 @@ int main(int argc, char **argv)
   std::vector<std::string> cmds;
 
   BOOST_FOREACH(std::string arg, opts["args"].as< std::vector<std::string> >()) {
-    if( boost::algorithm::ends_with(arg, ".trk") && boost::filesystem3::exists(arg) ) {
+    if( boost::algorithm::ends_with(arg, ".trk") && boost::filesystem::exists(arg) ) {
       if( !trk_filename.empty() ) {
         std::cerr <<"Only accepting one trk file for the moment." <<std::endl;
         return 1;

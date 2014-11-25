@@ -3,7 +3,7 @@ project(ladybug_playback)
 set(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 find_package(catkin REQUIRED COMPONENTS 
-  roscpp nodelet camera_info_manager image_transport dynamic_reconfigure
+  roscpp nodelet camera_info_manager image_transport dynamic_reconfigure driver_base
   stdr_lib stdr_msgs timer fastjpeg
 )
 find_package(Boost REQUIRED)
@@ -15,7 +15,7 @@ generate_dynamic_reconfigure_options(cfg/LadybugRecombine.cfg)
 
 catkin_package(
   CATKIN_DEPENDS roscpp nodelet camera_info_manager image_transport 
-                 dynamic_reconfigure stdr_lib stdr_msgs timer fastjpeg
+                 dynamic_reconfigure driver_base stdr_lib stdr_msgs timer fastjpeg
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
 )

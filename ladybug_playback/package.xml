@@ -16,6 +16,7 @@
   <build_depend version_gte="1.11.3">camera_info_manager</build_depend>
   <build_depend>image_transport</build_depend>
   <build_depend>dynamic_reconfigure</build_depend>
+  <build_depend>driver_base</build_depend>
   <build_depend>stdr_lib</build_depend>
   <build_depend>stdr_msgs</build_depend>
   <build_depend>timer</build_depend>
@@ -28,6 +29,7 @@
   <run_depend version_gte="1.11.3">camera_info_manager</run_depend>
   <run_depend>image_transport</run_depend>
   <run_depend>dynamic_reconfigure</run_depend>
+  <run_depend>driver_base</run_depend>
   <run_depend>stdr_lib</run_depend>
   <run_depend>stdr_msgs</run_depend>
   <run_depend>timer</run_depend>

@@ -47,9 +47,9 @@ using namespace track_file_io;
 
 std::string tmptrk()
 {
-  return boost::filesystem3::unique_path(boost::filesystem3::temp_directory_path()
-                                         /"test-track-file-io-%%%%%%.trk"
-                                         ).native();
+  return boost::filesystem::unique_path(boost::filesystem::temp_directory_path()
+                                        /"test-track-file-io-%%%%%%.trk"
+                                        ).native();
 }
 
 pcl::PointCloud<pcl::PointXYZ> randomPCD(unsigned npts)

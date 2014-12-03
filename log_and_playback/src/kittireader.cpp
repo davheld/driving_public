@@ -277,7 +277,7 @@ bool KittiVeloReader::next()
     pt.z = point.z;
     pt.intensity = point.intensity * 255;
     pt.h_angle = angles::from_degrees(point.h_angle);
-    pt.encoder = point.h_angle * 100;
+    pt.encoder = (360-point.h_angle) * 100;
     pt.v_angle = rcfg.vert_angle_.getRads();
     pt.beam_id = point.beam_id - 1;
     pt.beam_nb = point.beam_id - 1; //config_->getBeamNumber(pt.beam_id);

@@ -39,7 +39,8 @@
 
 #include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/static_assert.hpp>
+
+#include <angles/angles.h>
 
 #include <stdr_lib/rosparam_helpers.h>
 #include <log_and_playback/kittireader.h>
@@ -48,22 +49,9 @@
 namespace log_and_playback
 {
 
-/*
-  Error Acknowledgement - Currently within the Kitti Dataset, timestamps are
-  stored in increments of 1 Million us.
-  This is because the data comes without a timestamp, it's organized spin by spin.
-  So Devin made up a time, assuming 100ms per spin. However he made a mistake
-  and used 1,000,000 us instead of 100,000us.
-  Until the log files are recomputed, the issues will be handled locally in this
-  file. With the ability to correct them back into the desired output being
-  commented into this file as well.
-  See tag TIMING_ERROR in this source file for where it affects the code.
-*/
-
 void KittiApplanixReader::open(const std::string & filename)
 {
   file_.open(filename.c_str(), std::ios_base::in);
-  stream_.push(file_);
   ok_ = true;
   old_hw_timestamp_ = 0;
 }
@@ -88,11 +76,7 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(
 
   uint64_t epoch_time;
   ss >> epoch_time;
-
-  //Temporary Fix please revert to above line
-  // tag: TIMING_ERROR
-  //const double ep_time = static_cast<double>(epoch_time) * 1e-6;
-  const double ep_time = static_cast<double>(epoch_time) * 1E-7;
+  const double ep_time = static_cast<double>(epoch_time) * 1e-6;
 
 
   for(int i=0; i<25; i++)
@@ -116,8 +100,7 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(
   pose->accel_z = data[13];
   pose->wander =0;
   pose->id = 0;
-  pose->speed = (float)(sqrt(pose->vel_north * pose->vel_north
-                             + pose->vel_east * pose->vel_east));
+  pose->speed = (float)(hypot(pose->vel_north, pose->vel_east));
   pose->track = (float)(atan2(pose->vel_north, pose->vel_east));
 
   if (old_hw_timestamp_ !=0){
@@ -141,9 +124,8 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(
 
 bool KittiApplanixReader::next()
 {
-  double smooth_x, smooth_y, smooth_z;
-  smooth_x = smooth_y = smooth_z = 0;
-  if(pose_){
+  double smooth_x=0, smooth_y=0, smooth_z=0;
+  if( pose_ ) {
     smooth_x = pose_->smooth_x;
     smooth_y = pose_->smooth_y;
     smooth_z = pose_->smooth_z;
@@ -153,8 +135,9 @@ bool KittiApplanixReader::next()
 
   while( true )
   {
-    if( ok_ && std::getline(stream_, line_) ) {
-      pose_ = parseApplanix(line_, smooth_x, smooth_y, smooth_z);
+    std::string line;
+    if( ok_ && std::getline(file_, line) ) {
+      pose_ = parseApplanix(line, smooth_x, smooth_y, smooth_z);
       if( pose_ ) {
         time_ = pose_->header.stamp;
         return true;
@@ -167,7 +150,6 @@ bool KittiApplanixReader::next()
   }
 
   return ok_;
-  return false;
 }
 
 stdr_msgs::ApplanixPose::ConstPtr
@@ -251,12 +233,6 @@ bool KittiVeloReader::next()
     return false;
   }
 
-
-  //Temporary fix. Delete two line below once log files are fixed
-  // tag: TIMING_ERROR
-  header.t_start = uint64_t(header.t_start * 1e-1);
-  header.t_end = uint64_t(header.t_end * 1e-1);
-
   spin_.reset(new stdr_velodyne::PointCloud);
   spin_->reserve(header.num_points);
 
@@ -268,7 +244,8 @@ bool KittiVeloReader::next()
 
   struct __attribute__ ((__packed__)) Point {
     float x, y, z;
-    float intensity, h_angle;
+    float intensity;
+    float h_angle;
     uint8_t beam_id;
     float distance;
   } point;
@@ -299,8 +276,8 @@ bool KittiVeloReader::next()
     pt.y = point.y;
     pt.z = point.z;
     pt.intensity = point.intensity * 255;
-    pt.h_angle = point.h_angle;
-    pt.encoder = pt.h_angle * 100;
+    pt.h_angle = angles::from_degrees(point.h_angle);
+    pt.encoder = point.h_angle * 100;
     pt.v_angle = rcfg.vert_angle_.getRads();
     pt.beam_id = point.beam_id - 1;
     pt.beam_nb = point.beam_id - 1; //config_->getBeamNumber(pt.beam_id);

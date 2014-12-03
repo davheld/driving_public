@@ -5,9 +5,6 @@
 #include <iostream>
 #include <fstream>
 
-#include <boost/iostreams/filtering_stream.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
-
 #include <log_and_playback/abstract_data_reader.h>
 
 #include <stdr_velodyne/point_type.h>
@@ -20,7 +17,7 @@ namespace log_and_playback
 class KittiApplanixReader : public AbstractDataReader
 {
 public:
-  KittiApplanixReader() : ok_(false) {}
+  KittiApplanixReader() : ok_(false), old_hw_timestamp_(0) {}
   ~KittiApplanixReader();
   void open(const std::string & filename);
   void close();
@@ -36,11 +33,8 @@ public:
 
 private:
   std::ifstream file_;
-  boost::iostreams::filtering_istream stream_;
-  std::string line_;
   bool ok_;
 
-  //double old_hw_timestamp_;
   double old_hw_timestamp_;
   ros::Time time_;
   stdr_msgs::ApplanixPose::ConstPtr pose_;

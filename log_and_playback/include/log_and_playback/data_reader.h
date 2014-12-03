@@ -223,7 +223,7 @@ protected:
   BagTFListener tf_listener_;
 
   // a queue to hold the spin messages until a transform is available
-  std::queue< stdr_velodyne::PointCloudConstPtr > spinQ_;
+  std::queue< stdr_velodyne::PointCloud::ConstPtr > spinQ_;
 
   /// static config instance
   stdr_velodyne::Configuration::Ptr config_;

@@ -429,7 +429,7 @@ stdr_velodyne::PointCloudConstPtr SpinReader::getSpin() const
 stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
 {
   static const std::string target_frame = "smooth";
-  stdr_velodyne::PointCloudPtr spin;
+  stdr_velodyne::PointCloud::Ptr spin;
   stdr_velodyne::PointCloud velo_smooth;
   bool can_transform = true;
 
@@ -437,11 +437,8 @@ stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
     try {
       stdr_velodyne::transform_scan(tf_listener_, target_frame, *spinQ_.front(), velo_smooth);
       spinQ_.pop();
-      spin = spin_collector_.add(velo_smooth);
-      if( spin ) {
-        ROS_DEBUG("got whole spin");
-        current_spin_ = spin;
-      }
+      spin = boost::make_shared<stdr_velodyne::PointCloud>(velo_smooth);
+      current_spin_ = spin;
     }
     catch (tf::TransformException & e) {
       ROS_DEBUG_STREAM("transform_scan failed: " <<e.what());
@@ -449,8 +446,10 @@ stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
     }
   }
 
-  // limit the size of the queue. Keep the last 200ms of data
-  while( !spinQ_.empty() && (spinQ_.back()->header.stamp - spinQ_.front()->header.stamp)>200000 )
+  // limit the size of the queue. Keep the last 500ms of data
+  while( !spinQ_.empty() &&
+         (pcl_conversions::fromPCL(spinQ_.back()->header).stamp
+          - pcl_conversions::fromPCL(spinQ_.front()->header).stamp).toSec()>.5 )
     spinQ_.pop();
 
   return spin;
@@ -494,12 +493,17 @@ bool SpinReader::next()
   else if( const velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader_->instantiateVelodyneScans() ) {
     ROS_DEBUG("got raw scan t=%.3f", scans->header.stamp.toSec());
     BOOST_FOREACH(const velodyne_msgs::VelodynePacket & pkt, scans->packets) {
-      stdr_velodyne::PointCloud::Ptr pcd_ = boost::make_shared<stdr_velodyne::PointCloud>();
-      packet2pcd_convertor_.processPacket(pkt, *pcd_);
+      stdr_velodyne::PointCloud pcd;
+      packet2pcd_convertor_.processPacket(pkt, pcd);
       std_msgs::Header h(scans->header);
       h.stamp = pkt.stamp;
-      pcl_conversions::toPCL(h, pcd_->header);
-      spinQ_.push(pcd_);
+      pcl_conversions::toPCL(h, pcd.header);
+
+      stdr_velodyne::PointCloud::ConstPtr spin = spin_collector_.add(pcd);
+      if( spin ) {
+        ROS_DEBUG("got whole spin");
+        spinQ_.push(spin);
+      }
     }
   }
   return true;

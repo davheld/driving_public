@@ -456,6 +456,8 @@ stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
           - pcl_conversions::fromPCL(spinQ_.front()->header).stamp).toSec()>.5 )
     spinQ_.pop();
 
+  if( res_spin )
+    current_spin_ = res_spin;
   return res_spin;
 }
 
@@ -475,8 +477,6 @@ bool SpinReader::nextSpin()
       return false;
     spin = processSpinQueue();
   }
-  if( spin )
-    current_spin_ = spin;
   return spin;
 }
 

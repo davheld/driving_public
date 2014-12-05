@@ -114,7 +114,7 @@ def main():
         # there is more than 1 sec between message (3 messages missed)
         estop_state = False
         last_t = rospy.Time(0)
-        for topic, msg, t in bag.read_messages():
+        for topic, msg, t in bag.read_messages(raw=True):
             if topic == STATUS_TOPIC:
                 last_t = t
                 estop_state = True

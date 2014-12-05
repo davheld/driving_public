@@ -76,7 +76,13 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(
 
   uint64_t epoch_time;
   ss >> epoch_time;
-  const double ep_time = static_cast<double>(epoch_time) * 1e-6;
+  // epoch_time is the time in microseconds that we assigned in imu_kitti2.cpp,
+  // assuming a period of 100ms per frame, and starting with frame 0 at t=0.
+  // However, the velodyne time starts at t=100ms, and the IMU/GPS time
+  // correspond to when the velodyne was in front.
+  // That means that we need to add 150ms to have the 2 of them sync-ed
+  const double ep_time = static_cast<double>(epoch_time) * 1e-6 + .15;
+
 
 
   for(int i=0; i<25; i++)
@@ -117,8 +123,7 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(
   }
   old_hw_timestamp_ = ep_time;
   pose->hardware_timestamp = ep_time;
-  time_ = ros::Time(ep_time);
-  pose->header.stamp = time_;
+  pose->header.stamp.fromSec(ep_time);
   return pose;
 }
 
@@ -162,7 +167,7 @@ KittiApplanixReader::instantiateApplanixPose() const
 
 
 KittiVeloReader::KittiVeloReader()
-{  
+{
   ros::NodeHandle nh("/driving/velodyne");
 
   // ideally the box would be defined in base_link coordinates, and its velodyne
@@ -217,7 +222,7 @@ bool KittiVeloReader::next()
 
   struct __attribute__ ((__packed__)) Header {
     uint32_t num_points;
-    uint64_t t_start, t_end;
+    uint64_t t_start, t_end; // microseconds
   } header;
 
   vfile_.read((char *)(&header), sizeof(Header));
@@ -237,7 +242,8 @@ bool KittiVeloReader::next()
   spin_->reserve(header.num_points);
 
   spin_->header.frame_id = "velodyne";
-  spin_->header.stamp = header.t_start;
+  // in our convention, the spin's stamp is the stamp of the last point in the spin
+  spin_->header.stamp = header.t_end;
 
   time_ = pcl_conversions::fromPCL(spin_->header).stamp;
 
@@ -251,8 +257,6 @@ bool KittiVeloReader::next()
   } point;
 
   stdr_velodyne::PointType pt;
-  pt.timestamp = time_.toSec(); //TODO interpolate for each point using the h_angle information
-
   for( int i =0; i<header.num_points; i++) {
     vfile_.read((char *)(&point), sizeof(Point));
 
@@ -282,6 +286,16 @@ bool KittiVeloReader::next()
     pt.beam_id = point.beam_id - 1;
     pt.beam_nb = point.beam_id - 1; //config_->getBeamNumber(pt.beam_id);
     pt.distance = point.distance;
+
+    // get amount of rotation since the back
+    // pt.h_angle is given from the front CCW
+    const double alpha = fmod(540.0-point.h_angle, 360.0); //i.e. (2*M_PI-pt.h_angle)-(-M_PI)
+    const double r = alpha / 360.0;
+    // discretize in 200 sectors (velodyne points are stamped 600 by 600, which makes about 200 sectors)
+    // stdr_velodyne::transform_scan takes advantage of this to do less transform lookups
+    const double a = round(r * 200) / 200;
+    // interpolate the timestamp
+    pt.timestamp = (a * (header.t_end - header.t_start) + header.t_start) * 1e-6;
 
     // add to pointcloud
     spin_->push_back(pt);

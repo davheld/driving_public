@@ -429,21 +429,25 @@ stdr_velodyne::PointCloudConstPtr SpinReader::getSpin() const
 stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
 {
   static const std::string target_frame = "smooth";
-  stdr_velodyne::PointCloud::Ptr spin;
-  stdr_velodyne::PointCloud velo_smooth;
-  bool can_transform = true;
+  stdr_velodyne::PointCloud::Ptr res_spin;
 
-  while( ! spinQ_.empty() && ! spin && can_transform ) {
-    try {
-      stdr_velodyne::transform_scan(tf_listener_, target_frame, *spinQ_.front(), velo_smooth);
-      spinQ_.pop();
-      spin = boost::make_shared<stdr_velodyne::PointCloud>(velo_smooth);
-      current_spin_ = spin;
-    }
-    catch (tf::TransformException & e) {
-      ROS_DEBUG_STREAM("transform_scan failed: " <<e.what());
-      can_transform = false;
-    }
+  if( spinQ_.empty() )
+    return res_spin;
+
+  try
+  {
+    stdr_velodyne::PointCloud::Ptr velo_smooth(new stdr_velodyne::PointCloud);
+    stdr_velodyne::transform_scan(tf_listener_, target_frame, *spinQ_.front(), *velo_smooth);
+    spinQ_.pop();
+    res_spin = velo_smooth;
+  }
+  catch (tf::TransformException & e)
+  {
+    ROS_DEBUG_STREAM("transform_scan failed: " <<e.what());
+  }
+  catch(...)
+  {
+    ROS_DEBUG("transform_scan failed and threw an unexpected exception");
   }
 
   // limit the size of the queue. Keep the last 500ms of data
@@ -452,7 +456,7 @@ stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
           - pcl_conversions::fromPCL(spinQ_.front()->header).stamp).toSec()>.5 )
     spinQ_.pop();
 
-  return spin;
+  return res_spin;
 }
 
 bool SpinReader::prevSpin()
@@ -471,7 +475,8 @@ bool SpinReader::nextSpin()
       return false;
     spin = processSpinQueue();
   }
-
+  if( spin )
+    current_spin_ = spin;
   return spin;
 }
 
@@ -499,8 +504,7 @@ bool SpinReader::next()
       h.stamp = pkt.stamp;
       pcl_conversions::toPCL(h, pcd.header);
 
-      stdr_velodyne::PointCloud::ConstPtr spin = spin_collector_.add(pcd);
-      if( spin ) {
+      if( stdr_velodyne::PointCloud::ConstPtr spin = spin_collector_.add(pcd) ) {
         ROS_DEBUG("got whole spin");
         spinQ_.push(spin);
       }

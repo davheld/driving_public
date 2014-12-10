@@ -46,6 +46,32 @@
 #include <log_and_playback/kittireader.h>
 
 
+/*
+The KittiVeloWriter matlab script sets the timestamp of the first point of
+the first spin to t=100ms
+In our convention, the spin's stamp is the stamp of the last point in the
+spin, so 200ms for the first spin.
+We want a simple relation between the frame number and spin stamp,
+so we remove 200ms. However, because that would lead to a negative time for
+the points at the begining of the spin, we add 1,000,000 seconds
+(which is just an arbitry large number).
+With this, the stamp of the first spin (frame 0) should be 1,000,000s
+*/
+static const uint64_t vel_t_off = uint64_t((1e6 - 0.2)*1e6); //expressed in micro-seconds
+
+/*
+The IMU data is stamped (as per imu_kitti2.cpp) assuming a period of 100ms per
+frame, and starting with frame 0 at t=0.
+However, the time of the first point in the first velodyne spin is
+100ms + 1e6s - 200ms (see vel_t_off above).
+The IMU/GPS time corresponds to when the velodyne was in front.
+That means that the stamp for the first IMU/GPS data should be 1e6 - 50ms
+*/
+static const double imu_t_off = 1e6 - 0.05;
+
+
+
+
 namespace log_and_playback
 {
 
@@ -76,13 +102,7 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(
 
   uint64_t epoch_time;
   ss >> epoch_time;
-  // epoch_time is the time in microseconds that we assigned in imu_kitti2.cpp,
-  // assuming a period of 100ms per frame, and starting with frame 0 at t=0.
-  // However, the velodyne time starts at t=100ms, and the IMU/GPS time
-  // correspond to when the velodyne was in front.
-  // That means that we need to add 150ms to have the 2 of them sync-ed
-  const double ep_time = static_cast<double>(epoch_time) * 1e-6 + .15;
-
+  const double ep_time = static_cast<double>(epoch_time) * 1e-6 + imu_t_off;
 
 
   for(int i=0; i<25; i++)
@@ -121,8 +141,7 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(
     pose->smooth_y = 0;
     pose->smooth_z = 0;
   }
-  old_hw_timestamp_ = ep_time;
-  pose->hardware_timestamp = ep_time;
+  old_hw_timestamp_ = pose->hardware_timestamp = ep_time;
   pose->header.stamp.fromSec(ep_time);
   return pose;
 }
@@ -242,9 +261,7 @@ bool KittiVeloReader::next()
   spin_->reserve(header.num_points);
 
   spin_->header.frame_id = "velodyne";
-  // in our convention, the spin's stamp is the stamp of the last point in the spin
-  spin_->header.stamp = header.t_end;
-
+  spin_->header.stamp = header.t_end + vel_t_off;
   time_ = pcl_conversions::fromPCL(spin_->header).stamp;
 
 
@@ -295,7 +312,7 @@ bool KittiVeloReader::next()
     // stdr_velodyne::transform_scan takes advantage of this to do less transform lookups
     const double a = round(r * 200) / 200;
     // interpolate the timestamp
-    pt.timestamp = (a * (header.t_end - header.t_start) + header.t_start) * 1e-6;
+    pt.timestamp = (a * (header.t_end - header.t_start) + header.t_start + vel_t_off) * 1e-6;
 
     // add to pointcloud
     spin_->push_back(pt);

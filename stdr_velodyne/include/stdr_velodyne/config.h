@@ -214,8 +214,8 @@ private:
   /// hardware_indexes_[n] is the corresponding hardware index.
   uint8_t         hardware_indexes_[NUM_LASERS];
 
-  /// Table lookup of beam numbers: for a beam number i, beam_numbers_[i] is the
-  /// corresponding beam number
+  /// Table lookup of beam numbers: for a beam with a hardware index i,
+  /// beam_numbers_[i] is the corresponding beam number
   uint8_t         beam_numbers_[NUM_LASERS];
 
   /// The intensity correction lookup table, organized by beam number

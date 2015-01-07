@@ -80,6 +80,11 @@ protected:
   bool filter_points_on_car_;
   /// The box delimiting the points to filter (axis oriented, in velodyne frame)
   Eigen::Vector3d pt_on_car_max_, pt_on_car_min_;
+
+  /// We need to know whether the model is the VLP-16 because in that case the
+  /// last 16 returns (in the 32 returns block from velodyne_rawdata::raw_block_t)
+  /// correspond to a different encoder value that needs to be interpolated.
+  bool vlp16_;
 };
 
 

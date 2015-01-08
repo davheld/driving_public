@@ -49,7 +49,7 @@ PacketToPcd::PacketToPcd()
   : calibrate_intensities_(true)
   , config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
 {
-  ros::NodeHandle nh("/driving/velodyne");
+  ros::NodeHandle nh;
 
   GET_ROS_PARAM_INFO(nh, "max_dist", max_dist_, std::numeric_limits<double>::max());
 

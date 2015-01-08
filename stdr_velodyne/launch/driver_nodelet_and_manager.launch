@@ -8,6 +8,7 @@
     <node pkg="nodelet" type="nodelet" name="velodyne_driver_nodelet"
       args="load velodyne_driver/DriverNodelet nodelet_manager" >
       <remap from="velodyne_packets" to="packets"/>
+      <rosparam command="load" file="$(find stdr_velodyne)/launch/driver_params.yaml"/>
     </node>
 
   </group>

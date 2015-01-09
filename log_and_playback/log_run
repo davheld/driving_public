@@ -12,28 +12,36 @@ import subprocess
 import time
 import tarfile
 import datetime
+import argparse
+import rospy
+
+
+rospy.init_node('log_run')
 
 
 # ---------------------------------------------------------------------------
 
 
 # parameter name of the config files to save
-config_files_param = (
-  '/driving/velodyne/cal_file',
-  '/driving/velodyne/int_file'
-)
+config_files_param = []
+for f in ('cal_file', 'int_file'):
+  for v in ['velodyne'] + ['velodyne%d'%i for i in range(4)]:
+    config_files_param.append('/driving/%s/%s'%(v,f))
 
-vlftopics = ["/driving/velodyne/packets"]
+vlftopics = ["/driving/velodyne/packets"] + ["/driving/velodyne%d/packets"%i for i in range(4)]
 applanixtopics = ["/driving/ApplanixPose", "/driving/ApplanixGPS",
   "/driving/ApplanixRMS", "/driving/ApplanixDMI"]
 cameratopics = ["/driving/ladybug/images", "/driving/fleaL/image_raw",
   "/driving/fleaL/camera_info", "/driving/grasshopperR/image_raw",
   "/driving/grasshopperR/camera_info"]
-topicstoskip = ["/driving/velodyne/points", "/driving/velodyne/colored",
-  "/driving/velodyne/points_agg", "/driving/velodyne/raw_scans",
+topicstoskip = ["/clock",
   "/driving/smooth", "/tf", "/driving/trajectories",
   "/driving/perception/classification_result", "/driving/perception_velodyne",
   "/stdr_planner/static_map"]
+for f in ('points', 'colored', 'points_agg'):
+  for v in ['velodyne'] + ['velodyne%d'%i for i in range(4)]:
+    topicstoskip.append('/driving/%s/%s'%(v,f))
+
 
 def skip_topic(t):
   if t.startswith("/driving/ladybug/") or t.startswith("/driving/fleaL") or \
@@ -46,18 +54,22 @@ def skip_topic(t):
 # ---------------------------------------------------------------------------
 
 
+parser = argparse.ArgumentParser(description='Tool to log the driving data properly.')
+parser.add_argument('target_dir', metavar='dir', type=str, nargs='?', default='.',
+                    help='the directory where to save the logs (defaults to current dir)')
+parser.add_argument('-m', '--manual', action='store_true',
+                    help='manual driving mode (do not open the annotation tool)')
+cli_args = parser.parse_args()
+
 # get and check the target directory
-if len(sys.argv) != 2:
-  print "Usage:", sys.argv[0], " /directory/to/save/to"
-  sys.exit(0)
-if not os.path.exists(sys.argv[1]):
+if not os.path.exists(cli_args.target_dir):
   answer = raw_input("Target directory does not exist.  Create it? (y/N)")
   if answer.lower() == "y" or answer.lower() == "yes":
-    os.makedirs(sys.argv[1])
+    os.makedirs(cli_args.target_dir)
   else:
     sys.exit(0)
 else:
-  subprocess.call("".join(("rm -rf ", sys.argv[1], "/tmplog*")), shell=True)
+  subprocess.call("".join(("rm -rf ", cli_args.target_dir, "/tmplog*")), shell=True)
 
 
 # ---------------------------------------------------------------------------
@@ -117,7 +129,7 @@ datestmp = now.strftime("%m-%d-%Y_%H-%M-%S")
 # Create loggers
 nullout = file('/dev/null', 'a+')
 def makeLogger(name, topics):
-  cmd = ["rosbag", "record", "-O", os.path.join(sys.argv[1],name)] + topics
+  cmd = ["rosbag", "record", "-O", os.path.join(cli_args.target_dir,name)] + topics
   #print "Creating a new logger: " + " ".join(cmd)
   return subprocess.Popen(cmd, stdout=nullout, stderr=nullout)
 
@@ -133,7 +145,7 @@ if len(generaltopics)>0:
 def rename_bag_files(name):
   active = True
   while active:
-    files = os.listdir(sys.argv[1])
+    files = os.listdir(cli_args.target_dir)
     active = False
     for f in files:
       if f.startswith("tmplog") and f.endswith('bag.active'):
@@ -141,11 +153,11 @@ def rename_bag_files(name):
     if active:
       time.sleep(1)
 
-  files = os.listdir(sys.argv[1])
+  files = os.listdir(cli_args.target_dir)
   for f in files:
     if f.startswith("tmplog") and (f.endswith('bag') or f.endswith('tar.gz')):
-      s = os.path.join(sys.argv[1], f)
-      d = os.path.join(sys.argv[1], name + '-' + datestmp + f[6:])
+      s = os.path.join(cli_args.target_dir, f)
+      d = os.path.join(cli_args.target_dir, name + '-' + datestmp + f[6:])
       os.rename(s,d)
 
 
@@ -163,8 +175,9 @@ def exithandler(signum, frame):
       name = None
   if name != "":
     rename_bag_files(name)
-    generalbag = os.path.join(sys.argv[1], "%s-%s.bag" % (name, datestmp))
-    subprocess.call(['rosrun', 'log_and_playback', 'wiki_annotate', generalbag])
+    generalbag = os.path.join(cli_args.target_dir, "%s-%s.bag" % (name, datestmp))
+    if not cli_args.manual:
+      subprocess.call(['rosrun', 'log_and_playback', 'wiki_annotate', generalbag])
   sys.exit(0)
   return
 

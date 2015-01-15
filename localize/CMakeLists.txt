@@ -47,9 +47,17 @@ target_link_libraries(localize_pose_tf_broadcaster ${PROJECT_NAME})
 
 add_executable(gps_fix_pub src/gps_fix_pub.cpp)
 target_link_libraries(gps_fix_pub ${catkin_LIBRARIES})
+# Make sure stdr_msgs messages are generated first
+if(catkin_EXPORTED_TARGETS)
+  add_dependencies(gps_fix_pub ${catkin_EXPORTED_TARGETS})
+endif()
 
 add_executable(add_gps_offset src/add_gps_offset.cpp)
 target_link_libraries(add_gps_offset ${catkin_LIBRARIES})
+# Make sure stdr_msgs messages are generated first
+if(catkin_EXPORTED_TARGETS)
+  add_dependencies(add_gps_offset ${catkin_EXPORTED_TARGETS})
+endif()
 
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

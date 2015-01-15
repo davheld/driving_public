@@ -9,10 +9,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 find_package(Boost REQUIRED COMPONENTS iostreams program_options)
 
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${PROJECT_SOURCE_DIR})
-find_package(Gperftools REQUIRED)
-
-
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES ${PROJECT_NAME}
@@ -21,21 +17,29 @@ catkin_package(
   DEPENDS Boost
 )
 
-include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS} ${GPERFTOOLS_INCLUDE_DIR})
+include_directories(include ${catkin_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 
 add_library(${PROJECT_NAME}
   src/bag_reader.cpp
+  src/bag_tf_listener.cpp
   src/dgclogio.cpp
   src/dgclog_reader.cpp
   src/data_reader.cpp
   src/kittireader.cpp
+  src/robot_model.cpp
+  src/spinello.cpp
+  src/spin_reader.cpp
 
   include/log_and_playback/abstract_data_reader.h
   include/log_and_playback/bag_reader.h
+  include/log_and_playback/bag_tf_listener.h
   include/log_and_playback/data_reader.h
   include/log_and_playback/dgclog_reader.h
   include/log_and_playback/dgclogio.h
   include/log_and_playback/kittireader.h
+  include/log_and_playback/robot_model.h
+  include/log_and_playback/spinello.h
+  include/log_and_playback/spin_reader.h
 )
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 
@@ -49,9 +53,6 @@ target_link_libraries(example_spin_reader ${PROJECT_NAME})
 
 add_executable(log_playback src/log_playback.cpp)
 target_link_libraries(log_playback ${PROJECT_NAME})
-
-add_executable(profile_velodyne src/profile_velodyne.cpp)
-target_link_libraries(profile_velodyne ${PROJECT_NAME} ${GPERFTOOLS_PROFILER})
 
 add_executable(bag2dgc src/bag_to_dgc_converter.cpp)
 target_link_libraries(bag2dgc ${PROJECT_NAME})

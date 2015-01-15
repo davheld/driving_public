@@ -189,7 +189,11 @@ KittiVeloReader::KittiVeloReader()
 {
   ros::NodeHandle nh("/driving/velodyne");
 
-  // ideally the box would be defined in base_link coordinates, and its velodyne
+  // The filtering is normally done in the stdr_velodyne/pointcloud node
+  // however, with kitti the velodyne data already comes in velodyne format and
+  // so does not go through the stdr_velodyne/pointcloud node, so we filter it
+  // here.
+  // Ideally the box would be defined in base_link coordinates, and its velodyne
   // coordinates would be computed according to the pose of the velodyne.
   // However, in this node we don't have access to the velodyne extrinsincs.
   // So for now we define the box directly in velodyne frame.

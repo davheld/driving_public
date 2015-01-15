@@ -32,7 +32,6 @@
   <build_depend>localize</build_depend>
   <build_depend>stdr_velodyne</build_depend>
   <build_depend>ladybug_playback</build_depend>
-  <!--build_depend>gperftools</build_depend-->
   
   <run_depend>roscpp</run_depend>
   <run_depend>rosbag_storage</run_depend>
@@ -46,6 +45,5 @@
   <run_depend>localize</run_depend>
   <run_depend>stdr_velodyne</run_depend>
   <run_depend>ladybug_playback</run_depend>
-  <!--run_depend>gperftools</run_depend-->
 
 </package>

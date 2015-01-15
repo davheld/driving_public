@@ -39,11 +39,14 @@
 #include <unistd.h>
 #include <signal.h>
 
+#include <boost/program_options.hpp>
+
 #include <ros/publisher.h>
 #include <image_transport/image_transport.h>
 #include <rosgraph_msgs/Clock.h>
 
 #include <stdr_lib/exception.h>
+#include <stdr_velodyne/config.h>
 #include <log_and_playback/data_reader.h>
 
 

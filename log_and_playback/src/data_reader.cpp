@@ -46,6 +46,7 @@
 #include <log_and_playback/bag_reader.h>
 #include <log_and_playback/dgclog_reader.h>
 #include <log_and_playback/kittireader.h>
+#include <log_and_playback/spinello.h>
 
 
 namespace log_and_playback
@@ -61,7 +62,7 @@ bool data_reader_time_compare(const boost::shared_ptr<AbstractDataReader>& a,
 void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
 {
   readers_.clear();
-  bool dgc_logs=false, kitti_logs=false;
+  bool dgc_logs=false, kitti_logs=false, spinello_logs=false;
   std::vector<std::string> bag_logs;
   bool do_skip = false;
 
@@ -118,6 +119,26 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
       kitti_logs = true;
       do_skip = true;
     }
+    else if( boost::filesystem::is_directory(path) )
+    {
+      namespace fs = boost::filesystem;
+      fs::path dirpath(path);
+      fs::directory_iterator end_iter;
+      unsigned ezd_counter = 0;
+      for( fs::directory_iterator dir_iter(dirpath); dir_iter != end_iter; ++dir_iter ) {
+        if( fs::is_regular_file(dir_iter->status()) && boost::algorithm::ends_with(dir_iter->path().native(), ".ezd") ) {
+          ++ ezd_counter;
+        }
+      }
+      if( ezd_counter>0 ) {
+        boost::shared_ptr<SpinelloReader> reader(new SpinelloReader);
+        reader->open(path);
+        reader->next();
+        readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
+        spinello_logs = true;
+        do_skip = true;
+      }
+    }
     else
     {
       ROS_INFO_STREAM("Unrecognized log file: " <<path <<". Skipping.");
@@ -130,6 +151,7 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
   if( dgc_logs ) ++n_types;
   if( !bag_logs.empty() ) ++n_types;
   if( kitti_logs ) ++n_types;
+  if( spinello_logs ) ++n_types;
 
   if( n_types==0 ) {
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("You must provide some log files"));

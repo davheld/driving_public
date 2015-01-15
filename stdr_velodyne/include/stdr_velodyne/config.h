@@ -162,31 +162,31 @@ public:
 
   /// Transforms (block id and index is Scan) into a beam hardware index in the
   /// [0-64] range.
-  inline unsigned getBeamIndex(uint16_t header, unsigned i) const
+  static unsigned getBeamIndex(uint16_t header, unsigned i)
   { return i + ((header==velodyne_rawdata::LOWER_BANK) ? 32 : 0); }
 
   /// Given a beam number (0 is top-most), returns the corresponding hardware index.
-  inline int getHardwareIndex(unsigned n) const
-  { return hardware_indexes_[n]; }
+  int getHardwareIndex(unsigned n) const
+  { ROS_ASSERT(n<hardware_indexes_.size()); return hardware_indexes_[n]; }
 
   /// Given a beam number (0 is top most), returns the corresponding hardware index.
   /// @deprecated keeping for backward compatibility, use getHardwareIndex() instead.
-  inline int getBeamOrder(unsigned n) const __attribute__ ((deprecated("use getHardwareIndex() instead")))
-  { return hardware_indexes_[n]; }
+  int getBeamOrder(unsigned n) const __attribute__ ((deprecated("use getHardwareIndex() instead")))
+  { ROS_ASSERT(n<hardware_indexes_.size()); return hardware_indexes_[n]; }
 
   /// Given a beam hardware index (as in the Scan message), returns the
   /// corresponding beam number (0 is top-most).
-  inline int getBeamNumber(unsigned i) const
+  int getBeamNumber(unsigned i) const
   { return beam_numbers_[i]; }
 
   /// Given a beam hardware index (as in the Scan message), returns the
   /// corresponding beam number (0 is top-most).
   /// @deprecated keeping for backward compatibility, use getBeamNumber() instead.
-  inline int getInvBeamOrder(unsigned i) const __attribute__ ((deprecated("use getBeamNumber() instead")))
+  int getInvBeamOrder(unsigned i) const __attribute__ ((deprecated("use getBeamNumber() instead")))
   { return beam_numbers_[i]; }
 
   /// Returns the ring config for the beam indexed by @param i
-  inline const RingConfig & getRingConfig(unsigned i) const
+  const RingConfig & getRingConfig(unsigned i) const
   { return ring_config_[i]; }
 
   /// Returns the true intensity corresponding to the raw intensity returned by
@@ -197,6 +197,11 @@ public:
   /// Returns the beam number closest to the given v_angle
   unsigned v_angle_to_beam_number(double v_angle) const;
 
+  /// Returns the number of enabled beams
+  inline unsigned nEnabledBeams() const
+  { return hardware_indexes_.size(); }
+
+
 private:
   /// The static configuration instance (see getStaticConfigurationInstance())
   static Ptr static_configuration;
@@ -204,22 +209,22 @@ private:
   /// Constructed as invalid. Not valid until calibration data has been loaded.
   bool valid_;
 
-  unsigned        spin_start_; ///< encoder value for the begining of the spin
-  double          range_multiplier_;
+  unsigned spin_start_; ///< encoder value for the begining of the spin
+  double range_multiplier_;
 
   /// Rings configuration, stored by hardware index
-  RingConfig      ring_config_[NUM_LASERS];
+  RingConfig ring_config_[NUM_LASERS];
 
   /// Table lookup of beam hardware indexes: for beam number n,
   /// hardware_indexes_[n] is the corresponding hardware index.
-  uint8_t         hardware_indexes_[NUM_LASERS];
+  std::vector<uint8_t> hardware_indexes_;
 
   /// Table lookup of beam numbers: for a beam with a hardware index i,
   /// beam_numbers_[i] is the corresponding beam number
-  uint8_t         beam_numbers_[NUM_LASERS];
+  uint8_t beam_numbers_[NUM_LASERS];
 
   /// The intensity correction lookup table, organized by beam number
-  uint8_t         intensity_map_[NUM_LASERS][256];
+  uint8_t intensity_map_[NUM_LASERS][256];
 
   static const unsigned V_ANGLE_TO_BEAM_NB_RES_N = 512;
   uint8_t v_angle_to_beam_number_table_[V_ANGLE_TO_BEAM_NB_RES_N];

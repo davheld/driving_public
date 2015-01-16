@@ -54,15 +54,7 @@ namespace stdr_velodyne {
 class PacketToPcd
 {
 public:
-  PacketToPcd();
-
-  inline
-  PacketToPcd & calibrateIntensities(bool v)
-  { calibrate_intensities_=v; return *this; }
-
-  inline
-  bool calibrateIntensities() const
-  { return calibrate_intensities_; }
+  explicit PacketToPcd(const ros::NodeHandle &nh);
 
   /// Converts the packet to a pcd and append the points to the output pcd.
   /// Does not transform to a different frame. And does NOT set the header of

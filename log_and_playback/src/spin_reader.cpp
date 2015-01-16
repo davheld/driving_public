@@ -74,6 +74,7 @@ void SpinReader::addOptions(boost::program_options::positional_options_descripti
 SpinReader::SpinReader()
 : do_I_own_the_data_reader_(false), data_reader_(0)
 , config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
+, packet2pcd_convertor_( ros::NodeHandle("/driving/velodyne") )
 {
 
 }

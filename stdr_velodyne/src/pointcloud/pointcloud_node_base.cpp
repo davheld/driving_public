@@ -45,6 +45,7 @@ namespace stdr_velodyne
 
 
 PacketToPcdNodeBase::PacketToPcdNodeBase(ros::NodeHandle node_handle, ros::NodeHandle private_nh)
+  : PacketToPcd(node_handle)
 {
   Configuration::Ptr config = Configuration::getStaticConfigurationInstance();
 

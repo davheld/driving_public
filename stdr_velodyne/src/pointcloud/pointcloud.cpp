@@ -45,12 +45,10 @@
 namespace stdr_velodyne {
 
 
-PacketToPcd::PacketToPcd()
+PacketToPcd::PacketToPcd(const ros::NodeHandle & nh)
   : calibrate_intensities_(true)
   , config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
 {
-  ros::NodeHandle nh;
-
   GET_ROS_PARAM_INFO(nh, "max_dist", max_dist_, std::numeric_limits<double>::max());
 
   // ideally the box would be defined in base_link coordinates, and its velodyne

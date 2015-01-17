@@ -57,7 +57,7 @@ class SpinelloReader : public AbstractDataReader
 {
 public:
   SpinelloReader();
-  void open(const std::string & dirname);
+  void open(const std::string & dirname, ros::Duration skip=ros::Duration(0));
   void close() {}
 
   /// Advances one data into the file. Returns false on EOF.

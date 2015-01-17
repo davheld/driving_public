@@ -111,10 +111,9 @@ void SpinelloReader::makeApplanixData()
   pose_->header.stamp = time_;
 }
 
-void SpinelloReader::open(const std::string & dirname)
+void SpinelloReader::open(const std::string & dirname, ros::Duration skip)
 {
   ezd_files_.clear();
-  ezd_file_cnt_ = 0;
 
   namespace fs = boost::filesystem;
   fs::path dirpath(dirname);
@@ -127,7 +126,9 @@ void SpinelloReader::open(const std::string & dirname)
   }
   std::sort(ezd_files_.begin(), ezd_files_.end());
 
-  ok_ = true;
+  ezd_file_cnt_ = std::max(0, int(floor(skip.toSec() / period)) - 1);
+
+  ok_ = (ezd_file_cnt_<ezd_files_.size());
 }
 
 struct pointCompare

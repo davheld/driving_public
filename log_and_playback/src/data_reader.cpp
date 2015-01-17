@@ -132,11 +132,11 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
       }
       if( ezd_counter>0 ) {
         boost::shared_ptr<SpinelloReader> reader(new SpinelloReader);
-        reader->open(path);
+        reader->open(path, skip);
         reader->next();
         readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
         spinello_logs = true;
-        do_skip = true;
+        do_skip = false;
       }
     }
     else

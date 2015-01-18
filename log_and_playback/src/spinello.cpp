@@ -49,6 +49,33 @@ namespace log_and_playback
 static const double period = 0.2;
 
 
+unsigned frameNumberFromFilename(const std::string &filename)
+{
+  boost::filesystem::path p(filename);
+  for (; !p.extension().empty(); p = p.stem());
+
+  const std::string & n = p.native();
+  ROS_ASSERT( !n.empty() );
+  unsigned i = n.size() - 1;
+  for( ; i>=1; --i ) {
+    const char & c = n.at(i);
+    if( c<'0' || c>'9' )
+      break;
+  }
+
+  std::string numstr = n.substr(i+1);
+  unsigned num;
+  ROS_ASSERT( !numstr.empty() );
+  try {
+    num = boost::lexical_cast<unsigned>(numstr);
+  }
+  catch(const boost::bad_lexical_cast & e) {
+    ROS_FATAL_STREAM("" <<e.what());
+    ROS_BREAK();
+  }
+  return num;
+}
+
 
 SpinelloReader::SpinelloReader()
   : read_applanix_(5)
@@ -226,7 +253,7 @@ bool SpinelloReader::next()
   readVelodyneData();
 
   ++ ezd_file_cnt_;
-  time_.fromSec(ezd_file_cnt_ * period);
+  time_.fromSec(frameNumberFromFilename(ezd_files_[ezd_file_cnt_]) * period);
   read_applanix_ = 1;
 
   ok_ = true;

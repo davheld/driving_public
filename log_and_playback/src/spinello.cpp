@@ -252,8 +252,8 @@ bool SpinelloReader::next()
 
   readVelodyneData();
 
+  time_.fromSec((frameNumberFromFilename(ezd_files_[ezd_file_cnt_])+1) * period);
   ++ ezd_file_cnt_;
-  time_.fromSec(frameNumberFromFilename(ezd_files_[ezd_file_cnt_]) * period);
   read_applanix_ = 1;
 
   ok_ = true;

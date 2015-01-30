@@ -39,11 +39,14 @@
 #include <unistd.h>
 #include <signal.h>
 
+#include <boost/program_options.hpp>
+
 #include <ros/publisher.h>
 #include <image_transport/image_transport.h>
 #include <rosgraph_msgs/Clock.h>
 
 #include <stdr_lib/exception.h>
+#include <stdr_velodyne/config.h>
 #include <log_and_playback/data_reader.h>
 
 
@@ -243,13 +246,28 @@ int main(int argc, char **argv)
   // for dgc logs, we publish scans, and so the calibration files will be loaded
   // by the velodyne processor node.
 
-  bool kitti = false;
+  bool kitti = false, spinello = false;
   BOOST_FOREACH(const std::string &log, opts["logs"].as< std::vector<std::string> >()) {
-    if( boost::algorithm::ends_with(log, ".kit") || boost::algorithm::ends_with(log, ".imu") )
+    if( boost::filesystem::is_regular_file(log) &&
+        boost::algorithm::ends_with(log, ".kit") || boost::algorithm::ends_with(log, ".imu") ) {
       kitti = true;
+    }
+    else if( boost::filesystem::is_directory(log) ) {
+      namespace fs = boost::filesystem;
+      fs::path dirpath(log);
+      fs::directory_iterator end_iter;
+      unsigned ezd_counter = 0;
+      for( fs::directory_iterator dir_iter(dirpath); dir_iter != end_iter; ++dir_iter ) {
+        if( fs::is_regular_file(dir_iter->status()) && boost::algorithm::ends_with(dir_iter->path().native(), ".ezd") ) {
+          ++ ezd_counter;
+        }
+      }
+      if( ezd_counter>0 )
+        spinello = true;
+    }
   }
 
-  if( kitti ) {
+  if( kitti || spinello ) {
     stdr_velodyne::Configuration::Ptr config =
         stdr_velodyne::Configuration::getStaticConfigurationInstance();
 

@@ -39,31 +39,45 @@
 
 #include <boost/foreach.hpp>
 #include <boost/make_shared.hpp>
-#include <boost/static_assert.hpp>
+
+#include <angles/angles.h>
 
 #include <stdr_lib/rosparam_helpers.h>
 #include <log_and_playback/kittireader.h>
 
 
-namespace log_and_playback
-{
+/*
+The KittiVeloWriter matlab script sets the timestamp of the first point of
+the first spin to t=100ms
+In our convention, the spin's stamp is the stamp of the last point in the
+spin, so 200ms for the first spin.
+We want a simple relation between the frame number and spin stamp,
+so we remove 200ms. However, because that would lead to a negative time for
+the points at the begining of the spin, we add 1,000,000 seconds
+(which is just an arbitry large number).
+With this, the stamp of the first spin (frame 0) should be 1,000,000s
+*/
+static const uint64_t vel_t_off = uint64_t((1e6 - 0.2)*1e6); //expressed in micro-seconds
 
 /*
-  Error Acknowledgement - Currently within the Kitti Dataset, timestamps are
-  stored in increments of 1 Million us.
-  This is because the data comes without a timestamp, it's organized spin by spin.
-  So Devin made up a time, assuming 100ms per spin. However he made a mistake
-  and used 1,000,000 us instead of 100,000us.
-  Until the log files are recomputed, the issues will be handled locally in this
-  file. With the ability to correct them back into the desired output being
-  commented into this file as well.
-  See tag TIMING_ERROR in this source file for where it affects the code.
+The IMU data is stamped (as per imu_kitti2.cpp) assuming a period of 100ms per
+frame, and starting with frame 0 at t=0.
+However, the time of the first point in the first velodyne spin is
+100ms + 1e6s - 200ms (see vel_t_off above).
+The IMU/GPS time corresponds to when the velodyne was in front.
+That means that the stamp for the first IMU/GPS data should be 1e6 - 50ms
 */
+static const double imu_t_off = 1e6 - 0.05;
+
+
+
+
+namespace log_and_playback
+{
 
 void KittiApplanixReader::open(const std::string & filename)
 {
   file_.open(filename.c_str(), std::ios_base::in);
-  stream_.push(file_);
   ok_ = true;
   old_hw_timestamp_ = 0;
 }
@@ -88,11 +102,7 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(
 
   uint64_t epoch_time;
   ss >> epoch_time;
-
-  //Temporary Fix please revert to above line
-  // tag: TIMING_ERROR
-  //const double ep_time = static_cast<double>(epoch_time) * 1e-6;
-  const double ep_time = static_cast<double>(epoch_time) * 1E-7;
+  const double ep_time = static_cast<double>(epoch_time) * 1e-6 + imu_t_off;
 
 
   for(int i=0; i<25; i++)
@@ -116,8 +126,7 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(
   pose->accel_z = data[13];
   pose->wander =0;
   pose->id = 0;
-  pose->speed = (float)(sqrt(pose->vel_north * pose->vel_north
-                             + pose->vel_east * pose->vel_east));
+  pose->speed = (float)(hypot(pose->vel_north, pose->vel_east));
   pose->track = (float)(atan2(pose->vel_north, pose->vel_east));
 
   if (old_hw_timestamp_ !=0){
@@ -132,18 +141,15 @@ stdr_msgs::ApplanixPose::Ptr KittiApplanixReader::parseApplanix(
     pose->smooth_y = 0;
     pose->smooth_z = 0;
   }
-  old_hw_timestamp_ = ep_time;
-  pose->hardware_timestamp = ep_time;
-  time_ = ros::Time(ep_time);
-  pose->header.stamp = time_;
+  old_hw_timestamp_ = pose->hardware_timestamp = ep_time;
+  pose->header.stamp.fromSec(ep_time);
   return pose;
 }
 
 bool KittiApplanixReader::next()
 {
-  double smooth_x, smooth_y, smooth_z;
-  smooth_x = smooth_y = smooth_z = 0;
-  if(pose_){
+  double smooth_x=0, smooth_y=0, smooth_z=0;
+  if( pose_ ) {
     smooth_x = pose_->smooth_x;
     smooth_y = pose_->smooth_y;
     smooth_z = pose_->smooth_z;
@@ -153,8 +159,9 @@ bool KittiApplanixReader::next()
 
   while( true )
   {
-    if( ok_ && std::getline(stream_, line_) ) {
-      pose_ = parseApplanix(line_, smooth_x, smooth_y, smooth_z);
+    std::string line;
+    if( ok_ && std::getline(file_, line) ) {
+      pose_ = parseApplanix(line, smooth_x, smooth_y, smooth_z);
       if( pose_ ) {
         time_ = pose_->header.stamp;
         return true;
@@ -167,7 +174,6 @@ bool KittiApplanixReader::next()
   }
 
   return ok_;
-  return false;
 }
 
 stdr_msgs::ApplanixPose::ConstPtr
@@ -180,10 +186,14 @@ KittiApplanixReader::instantiateApplanixPose() const
 
 
 KittiVeloReader::KittiVeloReader()
-{  
+{
   ros::NodeHandle nh("/driving/velodyne");
 
-  // ideally the box would be defined in base_link coordinates, and its velodyne
+  // The filtering is normally done in the stdr_velodyne/pointcloud node
+  // however, with kitti the velodyne data already comes in velodyne format and
+  // so does not go through the stdr_velodyne/pointcloud node, so we filter it
+  // here.
+  // Ideally the box would be defined in base_link coordinates, and its velodyne
   // coordinates would be computed according to the pose of the velodyne.
   // However, in this node we don't have access to the velodyne extrinsincs.
   // So for now we define the box directly in velodyne frame.
@@ -235,7 +245,7 @@ bool KittiVeloReader::next()
 
   struct __attribute__ ((__packed__)) Header {
     uint32_t num_points;
-    uint64_t t_start, t_end;
+    uint64_t t_start, t_end; // microseconds
   } header;
 
   vfile_.read((char *)(&header), sizeof(Header));
@@ -251,31 +261,23 @@ bool KittiVeloReader::next()
     return false;
   }
 
-
-  //Temporary fix. Delete two line below once log files are fixed
-  // tag: TIMING_ERROR
-  header.t_start = uint64_t(header.t_start * 1e-1);
-  header.t_end = uint64_t(header.t_end * 1e-1);
-
   spin_.reset(new stdr_velodyne::PointCloud);
   spin_->reserve(header.num_points);
 
   spin_->header.frame_id = "velodyne";
-  spin_->header.stamp = header.t_start;
-
+  spin_->header.stamp = header.t_end + vel_t_off;
   time_ = pcl_conversions::fromPCL(spin_->header).stamp;
 
 
   struct __attribute__ ((__packed__)) Point {
     float x, y, z;
-    float intensity, h_angle;
+    float intensity;
+    float h_angle;
     uint8_t beam_id;
     float distance;
   } point;
 
   stdr_velodyne::PointType pt;
-  pt.timestamp = time_.toSec(); //TODO interpolate for each point using the h_angle information
-
   for( int i =0; i<header.num_points; i++) {
     vfile_.read((char *)(&point), sizeof(Point));
 
@@ -299,12 +301,22 @@ bool KittiVeloReader::next()
     pt.y = point.y;
     pt.z = point.z;
     pt.intensity = point.intensity * 255;
-    pt.h_angle = point.h_angle;
-    pt.encoder = pt.h_angle * 100;
+    pt.h_angle = angles::from_degrees(point.h_angle);
+    pt.encoder = (360-point.h_angle) * 100;
     pt.v_angle = rcfg.vert_angle_.getRads();
     pt.beam_id = point.beam_id - 1;
     pt.beam_nb = point.beam_id - 1; //config_->getBeamNumber(pt.beam_id);
     pt.distance = point.distance;
+
+    // get amount of rotation since the back
+    // pt.h_angle is given from the front CCW
+    const double alpha = fmod(540.0-point.h_angle, 360.0); //i.e. (2*M_PI-pt.h_angle)-(-M_PI)
+    const double r = alpha / 360.0;
+    // discretize in 200 sectors (velodyne points are stamped 600 by 600, which makes about 200 sectors)
+    // stdr_velodyne::transform_scan takes advantage of this to do less transform lookups
+    const double a = round(r * 200) / 200;
+    // interpolate the timestamp
+    pt.timestamp = (a * (header.t_end - header.t_start) + header.t_start + vel_t_off) * 1e-6;
 
     // add to pointcloud
     spin_->push_back(pt);

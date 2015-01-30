@@ -37,7 +37,7 @@
 
 #include <ros/publisher.h>
 #include <stdr_lib/exception.h>
-#include <log_and_playback/data_reader.h>
+#include <log_and_playback/spin_reader.h>
 
 using namespace log_and_playback;
 using std::cout;

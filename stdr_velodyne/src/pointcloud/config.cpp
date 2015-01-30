@@ -163,15 +163,18 @@ bool operator< (const beam_angle_t& a, const beam_angle_t& b)
 
 void Configuration::recompute()
 {
-  std::vector<beam_angle_t> beam_angles(NUM_LASERS);
-
   static const double enc2rad = 2*M_PI/NUM_TICKS;
 
-  for (unsigned i = 0; i < NUM_LASERS; i++) {
+  std::vector<beam_angle_t> beam_angles;
+  beam_angles.reserve(NUM_LASERS);
+  for (unsigned i = 0; i < NUM_LASERS; ++i) {
     RingConfig & rc = ring_config_[i];
+    if( !rc.laser_enabled_ )
+      continue;
 
-    beam_angles[i].angle = rc.vert_angle_.getRads();
-    beam_angles[i].idx = i;
+    beam_angles.push_back(beam_angle_t());
+    beam_angles.back().angle = rc.vert_angle_.getRads();
+    beam_angles.back().idx = i;
 
     for (unsigned j = 0; j < NUM_TICKS; j++)
       rc.enc_rot_angle_[j].fromRads(rc.rot_angle_ - enc2rad*j);
@@ -181,26 +184,33 @@ void Configuration::recompute()
   std::sort(beam_angles.begin(), beam_angles.end()); //first from bottom to top
   std::reverse(beam_angles.begin(), beam_angles.end()); //then reverse
 
-  for (unsigned i = 0; i < NUM_LASERS; i++) {
-    hardware_indexes_[i] = beam_angles[i].idx;
-    beam_numbers_[beam_angles[i].idx] = i;
+  hardware_indexes_.clear();
+  hardware_indexes_.reserve(NUM_LASERS);
+  BOOST_FOREACH(beam_angle_t b, beam_angles) {
+    hardware_indexes_.push_back(b.idx);
   }
+
+  for (unsigned i = 0; i < NUM_LASERS; i++)
+    beam_numbers_[i] = NUM_LASERS;
+  for (unsigned i = 0; i < NUM_LASERS; i++)
+    if( i<beam_angles.size() )
+      beam_numbers_[beam_angles[i].idx] = i;
 
   //verify that we got things right, i.e. that rings numbers are sorted from
   //top to bottom.
-  for(unsigned b=1; b<NUM_LASERS; ++b) {
+  for(unsigned b=1; b<beam_angles.size(); ++b) {
     const double a_prev = getRingConfig(getHardwareIndex(b-1)).vert_angle_.getRads();
     const double a = getRingConfig(getHardwareIndex(b)).vert_angle_.getRads();
     ROS_ASSERT(a<a_prev);
   }
 
-  v_angle_max_ = beam_angles[0].angle;
-  const double v_angle_min = beam_angles[NUM_LASERS-1].angle;
+  v_angle_max_ = beam_angles.front().angle;
+  const double v_angle_min = beam_angles.back().angle;
   ROS_ASSERT(v_angle_min<v_angle_max_);
   v_angle_mult_ = (double)V_ANGLE_TO_BEAM_NB_RES_N / (v_angle_max_-v_angle_min);
   for(unsigned i=0, j=0; i<V_ANGLE_TO_BEAM_NB_RES_N; ++i) {
     const double a = v_angle_max_ - i / v_angle_mult_;
-    if( j+1<NUM_LASERS &&
+    if( j+1<beam_angles.size() &&
         fabs(angles::shortest_angular_distance(a,beam_angles[j].angle)) >
         fabs(angles::shortest_angular_distance(a,beam_angles[j+1].angle)) )
       ++j;

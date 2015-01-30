@@ -38,6 +38,7 @@ processes = {"launch": None, "player": None}
 bag=False
 dgc=False
 kitti=False
+spinello=False
 help=False
 
 for arg in sys.argv[1:]:
@@ -51,6 +52,10 @@ for arg in sys.argv[1:]:
       bag = True
     elif arg.endswith(".imu") or arg.endswith(".kit"):
       kitti = True
+  elif os.path.isdir(arg):
+    if len([f for f in os.listdir(arg) if f.endswith('.ezd')]) > 0:
+      spinello = True
+    
 
 def die(msg):
   print 'Error:', msg
@@ -61,15 +66,15 @@ def die(msg):
 if help:
     print help_string
 
-if bag + dgc + kitti > 1:
-    die('you cannot mix log files types (bag, dgc, kitti)')
+if bag + dgc + kitti + spinello > 1:
+    die('you cannot mix log files types (bag, dgc, kitti, spinello)')
 
 elif bag:
   if help:
     print 'rosbag player help:'
   processes["player"] = subprocess.Popen(["rosbag", "play", "--clock", "--hz=250"] + sys.argv[1:])
 
-elif dgc or kitti:
+elif dgc or kitti or spinello:
   if help:
     print 'log_player help:'
   processes["player"] = subprocess.Popen(["rosrun", "log_and_playback", "log_playback"] + sys.argv[1:])

@@ -2,11 +2,11 @@
   Stanford Driving Software
   Copyright (c) 2011 Stanford University
   All rights reserved.
-
+  
   Redistribution and use in source and binary forms, with
   or without modification, are permitted provided that the
   following conditions are met:
-
+  
 * Redistributions of source code must retain the above
   copyright notice, this list of conditions and the
   following disclaimer.
@@ -17,7 +17,7 @@
 * The names of the contributors may not be used to endorse
   or promote products derived from this software
   without specific prior written permission.
-
+  
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
   CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
   WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -35,9 +35,17 @@
   DAMAGE.
  ********************************************************/
 
-#ifndef __LOG_AND_PLAYBACK__DATA_READER__H__
-#define __LOG_AND_PLAYBACK__DATA_READER__H__
+#ifndef __LOG_AND_PLAYBACK__SPINELLO_H
+#define __LOG_AND_PLAYBACK__SPINELLO_H
 
+
+#include <string>
+#include <iostream>
+#include <fstream>
+
+#include <stdr_msgs/ApplanixPose.h>
+#include <stdr_velodyne/point_type.h>
+#include <stdr_velodyne/config.h>
 
 #include <log_and_playback/abstract_data_reader.h>
 
@@ -45,32 +53,45 @@
 namespace log_and_playback
 {
 
-class DataReader : public AbstractDataReader
+class SpinelloReader : public AbstractDataReader
 {
 public:
-  /// Load the logs. Optionally skip the first @param skip seconds.
-  void load(const std::vector<std::string> & logs, ros::Duration skip=ros::Duration(0));
+  SpinelloReader();
+  void open(const std::string & dirname, ros::Duration skip=ros::Duration(0));
+  void close() {}
+
+  /// Advances one data into the file. Returns false on EOF.
   bool next();
   bool ok() const { return ok_; }
+
   ros::Time time() const { return time_; }
 
-  stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const;
-  stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
-  stdr_msgs::ApplanixRMS::ConstPtr instantiateApplanixRMS() const;
-  velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const;
-  stdr_velodyne::PointCloud::ConstPtr instantiateVelodyneSpin() const;
-  stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const;
-  stdr_msgs::LocalizePose::ConstPtr instantiateLocalizePose() const;
-  stdr_msgs::EStopStatus::ConstPtr instantiateEStopStatus() const;
-  stdr_msgs::PassatStatus::ConstPtr instantiatePassatStatus() const;
-  stdr_msgs::Trajectory2D::ConstPtr instantiateTrajectory2D() const;
+  stdr_velodyne::PointCloud::ConstPtr instantiateVelodyneSpin() const { return spin_; }
+  stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const { return pose_; }
+
+protected:
+  /// static configuration instance
+  stdr_velodyne::Configuration::ConstPtr config_;
 
 private:
-  std::vector< boost::shared_ptr<AbstractDataReader> > readers_;
-  bool ok_;
+  stdr_velodyne::PointCloud::Ptr spin_;
+  stdr_msgs::ApplanixPose::Ptr pose_;
   ros::Time time_;
+  bool ok_;
+
+  std::vector<std::string> ezd_files_;
+  unsigned ezd_file_cnt_;
+  unsigned read_applanix_;
+
+  /// Whether to filter the points that fall on junior
+  bool filter_points_on_car_;
+  /// The box delimiting the points to filter (axis oriented, in velodyne frame)
+  Eigen::Vector3d pt_on_car_max_, pt_on_car_min_;
+
+  void makeApplanixData();
+  void readVelodyneData();
 };
 
-} //namespace log_and_playback
+}
 
-#endif /* __LOG_AND_PLAYBACK__DATA_READER__H__ */
+#endif // __LOG_AND_PLAYBACK__SPINELLO_H

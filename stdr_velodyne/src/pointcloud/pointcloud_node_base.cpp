@@ -45,25 +45,26 @@ namespace stdr_velodyne
 
 
 PacketToPcdNodeBase::PacketToPcdNodeBase(ros::NodeHandle node_handle, ros::NodeHandle private_nh)
+  : PacketToPcd(node_handle)
 {
-  ros::NodeHandle global_handle("/driving/velodyne/");
-
   Configuration::Ptr config = Configuration::getStaticConfigurationInstance();
 
   std::string  cal_filename, int_filename;
-  GET_ROS_PARAM_ABORT(global_handle, "cal_file", cal_filename);
+  GET_ROS_PARAM_ABORT(node_handle, "cal_file", cal_filename);
   config->readCalibration(cal_filename);
 
-  GET_ROS_PARAM_WARN(global_handle, "calibrate_intensities", calibrate_intensities_, true);
+  GET_ROS_PARAM_WARN(node_handle, "calibrate_intensities", calibrate_intensities_, true);
 
-  if( ! global_handle.getParam("int_file", int_filename) && calibrate_intensities_ ) {
-    ROS_FATAL("Could not get calibration file from rosparam");
-    ROS_BREAK();
+  if( calibrate_intensities_ ) {
+    if( ! node_handle.getParam("int_file", int_filename) ) {
+      ROS_FATAL("Could not get calibration file from rosparam");
+      ROS_BREAK();
+    }
+    config->readIntensity(int_filename);
   }
-  config->readIntensity(int_filename);
 
-  pub_ = global_handle.advertise<PointCloud>("points", 100);
-  sub_ = global_handle.subscribe("packets", 100, &PacketToPcdNodeBase::cb, this);
+  pub_ = node_handle.advertise<PointCloud>("points", 100);
+  sub_ = node_handle.subscribe("packets", 100, &PacketToPcdNodeBase::cb, this);
 }
 
 

@@ -49,8 +49,6 @@ void transform_scan_in_place(
     const std::string & target_frame,
     PointCloud & spin)
 {
-  static const unsigned NBEAMS = 32;
-
   if( tf::strip_leading_slash(target_frame) == tf::strip_leading_slash(spin.header.frame_id) ) {
     ROS_DEBUG_THROTTLE(1, "Transforming to same frame. Skipping.");
     return;

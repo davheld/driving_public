@@ -45,12 +45,10 @@
 namespace stdr_velodyne {
 
 
-PacketToPcd::PacketToPcd()
+PacketToPcd::PacketToPcd(const ros::NodeHandle & nh)
   : calibrate_intensities_(true)
   , config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
 {
-  ros::NodeHandle nh("/driving/velodyne");
-
   GET_ROS_PARAM_INFO(nh, "max_dist", max_dist_, std::numeric_limits<double>::max());
 
   // ideally the box would be defined in base_link coordinates, and its velodyne
@@ -68,6 +66,11 @@ PacketToPcd::PacketToPcd()
           stdr::get_rosparam<double>(nh, "car_bb_max/y"),
           stdr::get_rosparam<double>(nh, "car_bb_max/z"));
   }
+
+  std::string model;
+  GET_ROS_PARAM_DEBUG(nh, "model", model, "");
+  vlp16_ = (model=="VLP16");
+  ROS_INFO_STREAM("" << (vlp16_?"":"not ") << "using the VLP16 mode");
 }
 
 void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, PointCloud& pcd) const
@@ -83,13 +86,48 @@ void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, Poi
   PointType pt;
   pt.timestamp = packet.stamp.toSec();
 
+  // in VLP16 mode, the second set of 16 returns correspond to a different
+  // encoder value that we need to guess. It is so because they wanted to keep
+  // the same packet than for the other models, which provide an encoder value
+  // for 32 beams.
+  // Here, I am computing the average distance between the 12 encoder values.
+  unsigned half_encoder_offset = 0;
+  if( vlp16_ ) {
+    double sum = 0;
+    unsigned n = 0;
+    for(unsigned i=1; i < velodyne_rawdata::BLOCKS_PER_PACKET; ++i) {
+      const double d = double(raw->blocks[i].rotation) - double(raw->blocks[i-1].rotation);
+      if( d>0 && d < 18000 ) { // take care of wrapping around 0
+        sum += d;
+        ++n;
+      }
+    }
+    ROS_ASSERT(n>0);
+    half_encoder_offset = sum / n / 2;
+  }
+
   BOOST_FOREACH(const velodyne_rawdata::raw_block_t & block, raw->blocks)
   {
     const unsigned e = block.rotation;
     pt.encoder = e;
 
-    for( unsigned j=0; j<velodyne_rawdata::SCANS_PER_BLOCK; j++ ) {
-      const unsigned n = config_->getBeamIndex(block.header, j);
+    for( unsigned j=0; j<velodyne_rawdata::SCANS_PER_BLOCK; ++j ) {
+
+      // compute the beam index n from the result index and the block header
+      unsigned n = j;
+      if( vlp16_ ) {
+        if( j >= 16 ) {
+          n = j - 16;
+          pt.encoder = e + half_encoder_offset;
+        }
+        else {
+          n = j;
+        }
+      }
+      else {
+        n = config_->getBeamIndex(block.header, j);
+      }
+
       const RingConfig & rcfg = config_->getRingConfig(n);
       const AngleVal & hAngle = rcfg.enc_rot_angle_[pt.encoder];
       pt.h_angle = hAngle.getRads();
@@ -97,12 +135,15 @@ void PacketToPcd::processPacket(const velodyne_msgs::VelodynePacket& packet, Poi
       pt.beam_id = n;
       pt.beam_nb = config_->getBeamNumber(n);
 
-      // TODO: this could be a bit simpler if we were using a {ushort, uchar} structure
       const unsigned k = j * velodyne_rawdata::RAW_SCAN_SIZE;
+
+      // this was copied from Jack O'Quin's velodyne_pointcloud/rawdata.cc
+      // TODO: this could be a bit simpler if we were using a {ushort, uchar} structure
       union velodyne_rawdata::two_bytes tmp;
       tmp.bytes[0] = block.data[k];
       tmp.bytes[1] = block.data[k+1];
       const uint16_t range = tmp.uint;
+
       const float distance = rcfg.range2dist(range);
 
       if( range==0 || distance>max_dist_ )

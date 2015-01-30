@@ -39,16 +39,14 @@
 
 #include <boost/foreach.hpp>
 
-#include <urdf/model.h>
-#include <kdl_parser/kdl_parser.hpp>
-#include <tf_conversions/tf_kdl.h>
-
 #include <stdr_lib/rosparam_helpers.h>
 #include <dgc_transform/dgc_transform.h>
 #include <stdr_velodyne/transform.h>
 #include <log_and_playback/data_reader.h>
-
-namespace bpo=boost::program_options;
+#include <log_and_playback/bag_reader.h>
+#include <log_and_playback/dgclog_reader.h>
+#include <log_and_playback/kittireader.h>
+#include <log_and_playback/spinello.h>
 
 
 namespace log_and_playback
@@ -64,7 +62,7 @@ bool data_reader_time_compare(const boost::shared_ptr<AbstractDataReader>& a,
 void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
 {
   readers_.clear();
-  bool dgc_logs=false, kitti_logs=false;
+  bool dgc_logs=false, kitti_logs=false, spinello_logs=false;
   std::vector<std::string> bag_logs;
   bool do_skip = false;
 
@@ -121,6 +119,26 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
       kitti_logs = true;
       do_skip = true;
     }
+    else if( boost::filesystem::is_directory(path) )
+    {
+      namespace fs = boost::filesystem;
+      fs::path dirpath(path);
+      fs::directory_iterator end_iter;
+      unsigned ezd_counter = 0;
+      for( fs::directory_iterator dir_iter(dirpath); dir_iter != end_iter; ++dir_iter ) {
+        if( fs::is_regular_file(dir_iter->status()) && boost::algorithm::ends_with(dir_iter->path().native(), ".ezd") ) {
+          ++ ezd_counter;
+        }
+      }
+      if( ezd_counter>0 ) {
+        boost::shared_ptr<SpinelloReader> reader(new SpinelloReader);
+        reader->open(path, skip);
+        reader->next();
+        readers_.push_back(boost::dynamic_pointer_cast<AbstractDataReader>(reader));
+        spinello_logs = true;
+        do_skip = false;
+      }
+    }
     else
     {
       ROS_INFO_STREAM("Unrecognized log file: " <<path <<". Skipping.");
@@ -133,6 +151,7 @@ void DataReader::load(const std::vector<std::string> & logs, ros::Duration skip)
   if( dgc_logs ) ++n_types;
   if( !bag_logs.empty() ) ++n_types;
   if( kitti_logs ) ++n_types;
+  if( spinello_logs ) ++n_types;
 
   if( n_types==0 ) {
     BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo("You must provide some log files"));
@@ -249,299 +268,5 @@ stdr_msgs::Trajectory2D::ConstPtr DataReader::instantiateTrajectory2D() const
 {
   FUNC_BODY(stdr_msgs::Trajectory2D, instantiateTrajectory2D);
 }
-
-
-void BagTFListener::addApplanixPose(const stdr_msgs::ApplanixPose & pose)
-{
-  app_trans_.update(pose);
-  app_trans_.addToTransformer(*this, "bag");
-  if( broadcast_ )
-    app_trans_.broadcast(broadcaster_);
-
-  if( !from_localize_pose_ ) {
-    fake_localizer_.update(pose);
-    fake_localizer_.addToTransformer(*this, "bag");
-    if( broadcast_ )
-      fake_localizer_.broadcast(broadcaster_);
-  }
-
-  handleStaticTransforms(pose.header.stamp);
-}
-
-void BagTFListener::addLocalizePose(const stdr_msgs::LocalizePose & pose)
-{
-  if( !from_localize_pose_ ) {
-    // reset the localizer
-    fake_localizer_ = localize::FakeLocalizer();
-  }
-  from_localize_pose_ = true;
-  fake_localizer_.update_transforms(pose);
-  fake_localizer_.addToTransformer(*this, "bag");
-  if( broadcast_ )
-    fake_localizer_.broadcast(broadcaster_);
-  handleStaticTransforms(pose.header.stamp);
-}
-
-void BagTFListener::addTFMsg(const tf::tfMessage & msg)
-{
-  static tf::StampedTransform trans;
-  for( unsigned i = 0; i < msg.transforms.size(); i++ ) {
-    tf::transformStampedMsgToTF(msg.transforms[i], trans);
-    setTransform(trans, "bag");
-    if( broadcast_ )
-      broadcaster_.sendTransform(trans);
-  }
-
-  if( ! msg.transforms.empty() )
-    handleStaticTransforms(msg.transforms.rbegin()->header.stamp);
-}
-
-void BagTFListener::handleStaticTransforms(const ros::Time & stamp)
-{
-  BOOST_FOREACH(tf::StampedTransform t, static_transforms_) {
-    t.stamp_ = stamp;
-    setTransform(t, "bag");
-    if( broadcast_ ) broadcaster_.sendTransform(t);
-  }
-  initialized_ = true;
-}
-
-void BagTFListener::addStaticTransform(const tf::StampedTransform & t)
-{
-  static_transforms_.push_back(t);
-}
-
-void BagTFListener::addStaticTransforms(const std::vector< tf::StampedTransform > & transforms)
-{
-  static_transforms_.insert(static_transforms_.end(), transforms.begin(), transforms.end());
-}
-
-void RobotModel::addParam(const std::string &param)
-{
-  urdf::Model model;
-  if( !model.initParam(param) )
-    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
-                            "Could not load the robot model"));
-  addModel(model);
-}
-
-void RobotModel::addFile(const std::string &filename)
-{
-  urdf::Model model;
-  if( !model.initFile(filename) )
-    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
-                            "Could not load the robot model"));
-  addModel(model);
-}
-
-
-void RobotModel::addChildren(const KDL::SegmentMap::const_iterator segment)
-{
-  const std::string& root = GetTreeElementSegment(segment->second).getName();
-  const std::vector<KDL::SegmentMap::const_iterator>& children = GetTreeElementChildren(segment->second);
-  for (unsigned int i=0; i<children.size(); i++) {
-    const KDL::Segment& child = GetTreeElementSegment(children[i]->second);
-    if (child.getJoint().getType() == KDL::Joint::None) {
-      tf::StampedTransform tf_transform;
-      tf::transformKDLToTF(child.pose(0), tf_transform);
-      tf_transform.frame_id_ = root;
-      tf_transform.child_frame_id_ = child.getName();
-      static_transforms_.push_back(tf_transform);
-    }
-    addChildren(children[i]);
-  }
-}
-
-void RobotModel::addModel(const urdf::ModelInterface& model)
-{
-  KDL::Tree tree;
-  if (!kdl_parser::treeFromUrdfModel(model, tree))
-    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
-                            "Failed to extract kdl tree from xml robot description"));
-
-  addChildren(tree.getRootSegment());
-}
-
-
-void SpinReader::addOptions(boost::program_options::options_description& opts_desc)
-{
-  opts_desc.add_options()
-      ("start,s", bpo::value<double>()->default_value(0), "start SEC seconds into the bag files")
-      ("nocal", "do not load any calibration file (i.e. use the default config).")
-      ("cal", bpo::value<std::string>(), "velodyne calibration file")
-      ("noical", "do not load any intensity calibration file (i.e. use the default config).")
-      ("ical", bpo::value<std::string>(), "velodyne intensity calibration file")
-      ("robot_description", bpo::value<std::string>(), "robot model file")
-      ("logs", bpo::value< std::vector<std::string> >()->required(), "log files to load (bags or dgc logs)")
-      ;
-}
-
-void SpinReader::addOptions(boost::program_options::positional_options_description& pos_opts_desc)
-{
-  pos_opts_desc.add("logs", -1);
-}
-
-
-
-SpinReader::SpinReader()
-: do_I_own_the_data_reader_(false), data_reader_(0)
-, config_( stdr_velodyne::Configuration::getStaticConfigurationInstance() )
-{
-
-}
-
-SpinReader::~SpinReader()
-{
-  unsetDataReader();
-}
-
-void SpinReader::setDataReader(AbstractDataReader & reader)
-{
-  unsetDataReader();
-  data_reader_ = &reader;
-  do_I_own_the_data_reader_ = false;
-}
-
-void SpinReader::unsetDataReader()
-{
-  if( do_I_own_the_data_reader_ && data_reader_ ) {
-    delete data_reader_;
-    data_reader_ = NULL;
-  }
-}
-
-void SpinReader::load(const std::vector< std::string > &logs, ros::Duration skip)
-{
-  unsetDataReader();
-  data_reader_ = new DataReader();
-  do_I_own_the_data_reader_ = true;
-  ((DataReader *)data_reader_)->load(logs, skip);
-
-  // read some data, until we get the tf static frames
-  while( ros::ok() && !tf_listener_.initialized() && next() );
-}
-
-stdr_velodyne::PointCloudConstPtr SpinReader::getSpin() const
-{
-  return current_spin_;
-}
-
-stdr_velodyne::PointCloudPtr SpinReader::processSpinQueue()
-{
-  static const std::string target_frame = "smooth";
-  stdr_velodyne::PointCloudPtr spin;
-  stdr_velodyne::PointCloud velo_smooth;
-  bool can_transform = true;
-
-  while( ! spinQ_.empty() && ! spin && can_transform ) {
-    try {
-      stdr_velodyne::transform_scan(tf_listener_, target_frame, *spinQ_.front(), velo_smooth);
-      spinQ_.pop();
-      spin = spin_collector_.add(velo_smooth);
-      if( spin ) {
-        ROS_DEBUG("got whole spin");
-        current_spin_ = spin;
-      }
-    }
-    catch (tf::TransformException & e) {
-      ROS_DEBUG_STREAM("transform_scan failed: " <<e.what());
-      can_transform = false;
-    }
-  }
-
-  // limit the size of the queue. Keep the last 200ms of data
-  while( !spinQ_.empty() && (spinQ_.back()->header.stamp - spinQ_.front()->header.stamp)>200000 )
-    spinQ_.pop();
-
-  return spin;
-}
-
-bool SpinReader::prevSpin()
-{
-  ROS_ERROR("prevSpin not yet implemented.");
-  return false;
-}
-
-bool SpinReader::nextSpin()
-{
-  current_spin_.reset();
-  stdr_velodyne::PointCloudPtr spin = processSpinQueue();
-  while( !spin && ros::ok() )
-  {
-    if( !next() )
-      return false;
-    spin = processSpinQueue();
-  }
-
-  return spin;
-}
-
-bool SpinReader::next()
-{
-  if( !data_reader_->next() )
-    return false;
-
-  if( const stdr_msgs::ApplanixPose::ConstPtr applanix = data_reader_->instantiateApplanixPose() ) {
-    ROS_DEBUG("Adding applanix pose t=%.3f", applanix->header.stamp.toSec());
-    tf_listener_.addApplanixPose(*applanix);
-  }
-  else if( const stdr_msgs::LocalizePose::ConstPtr localize_pose = data_reader_->instantiateLocalizePose() ) {
-    tf_listener_.addLocalizePose(*localize_pose);
-  }
-  else if( const stdr_velodyne::PointCloud::ConstPtr pcd = data_reader_->instantiateVelodyneSpin() ) {
-    spinQ_.push(pcd);
-  }
-  else if( const velodyne_msgs::VelodyneScan::ConstPtr scans = data_reader_->instantiateVelodyneScans() ) {
-    ROS_DEBUG("got raw scan t=%.3f", scans->header.stamp.toSec());
-    BOOST_FOREACH(const velodyne_msgs::VelodynePacket & pkt, scans->packets) {
-      stdr_velodyne::PointCloud::Ptr pcd_ = boost::make_shared<stdr_velodyne::PointCloud>();
-      packet2pcd_convertor_.processPacket(pkt, *pcd_);
-      std_msgs::Header h(scans->header);
-      h.stamp = pkt.stamp;
-      pcl_conversions::toPCL(h, pcd_->header);
-      spinQ_.push(pcd_);
-    }
-  }
-  return true;
-}
-
-void SpinReader::loadCalibrationFromProgramOptions(const bpo::variables_map & vm)
-{
-  if( ! vm.count("nocal") ) {
-    std::string calibration_file;
-    if( vm.count("cal") )
-      calibration_file = vm["cal"].as<std::string>();
-    else if( ! ros::param::get("/driving/velodyne/cal_file", calibration_file) )
-      BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
-                              "You must provide a configuration file, either on the command line, or as a rosparam."));
-    config_->readCalibration(calibration_file);
-  }
-
-  if( ! vm.count("noical") ) {
-    std::string intensity_file;
-    if( vm.count("ical") )
-      intensity_file = vm["ical"].as<std::string>();
-    else if( ! ros::param::get("/driving/velodyne/int_file", intensity_file) )
-      BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
-                              "You must provide an intensity configuration file, either on the command line, or as a rosparam."));
-    config_->readIntensity(intensity_file);
-  }
-}
-
-void SpinReader::loadTFMFromProgramOptions(const bpo::variables_map & vm)
-{
-  RobotModel model;
-  if( vm.count("robot_description") )
-    model.addFile(vm["robot_description"].as<std::string>());
-  else if( ! ros::param::has("/driving/robot_description") )
-    BOOST_THROW_EXCEPTION(stdr::ex::ExceptionBase() <<stdr::ex::MsgInfo(
-                            "You must provide a model description, either on the command line, or as a rosparam."));
-  model.addParam("/driving/robot_description");
-
-  BOOST_FOREACH(const tf::StampedTransform& t, model.getStaticTransforms()) {
-    tf_listener_.addStaticTransform(t);
-  }
-}
-
 
 } //namespace log_and_playback

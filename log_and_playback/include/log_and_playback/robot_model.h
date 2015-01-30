@@ -2,11 +2,11 @@
   Stanford Driving Software
   Copyright (c) 2011 Stanford University
   All rights reserved.
-
+  
   Redistribution and use in source and binary forms, with
   or without modification, are permitted provided that the
   following conditions are met:
-
+  
 * Redistributions of source code must retain the above
   copyright notice, this list of conditions and the
   following disclaimer.
@@ -17,7 +17,7 @@
 * The names of the contributors may not be used to endorse
   or promote products derived from this software
   without specific prior written permission.
-
+  
   THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
   CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED
   WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -35,42 +35,43 @@
   DAMAGE.
  ********************************************************/
 
-#ifndef __LOG_AND_PLAYBACK__DATA_READER__H__
-#define __LOG_AND_PLAYBACK__DATA_READER__H__
+#ifndef __LOG_AND_PLAYBACK__ROBOT_MODEL_H
+#define __LOG_AND_PLAYBACK__ROBOT_MODEL_H
 
+#include <vector>
 
-#include <log_and_playback/abstract_data_reader.h>
+#include <tf/transform_datatypes.h>
+#include <urdf_model/model.h>
+#include <kdl/tree.hpp>
 
 
 namespace log_and_playback
 {
 
-class DataReader : public AbstractDataReader
+class RobotModel
 {
-public:
-  /// Load the logs. Optionally skip the first @param skip seconds.
-  void load(const std::vector<std::string> & logs, ros::Duration skip=ros::Duration(0));
-  bool next();
-  bool ok() const { return ok_; }
-  ros::Time time() const { return time_; }
-
-  stdr_msgs::ApplanixPose::ConstPtr instantiateApplanixPose() const;
-  stdr_msgs::ApplanixGPS::ConstPtr instantiateApplanixGPS() const;
-  stdr_msgs::ApplanixRMS::ConstPtr instantiateApplanixRMS() const;
-  velodyne_msgs::VelodyneScan::ConstPtr instantiateVelodyneScans() const;
-  stdr_velodyne::PointCloud::ConstPtr instantiateVelodyneSpin() const;
-  stdr_msgs::LadybugImages::ConstPtr instantiateLadybugImages() const;
-  stdr_msgs::LocalizePose::ConstPtr instantiateLocalizePose() const;
-  stdr_msgs::EStopStatus::ConstPtr instantiateEStopStatus() const;
-  stdr_msgs::PassatStatus::ConstPtr instantiatePassatStatus() const;
-  stdr_msgs::Trajectory2D::ConstPtr instantiateTrajectory2D() const;
-
 private:
-  std::vector< boost::shared_ptr<AbstractDataReader> > readers_;
-  bool ok_;
-  ros::Time time_;
+  std::vector< tf::StampedTransform > static_transforms_;
+
+  /// Adds the static transforms from the robot model.
+  void addModel(const urdf::ModelInterface& model);
+
+  void addChildren(const KDL::SegmentMap::const_iterator segment);
+
+public:
+  /// Adds the static transforms from the robot model.
+  /// The model is given as an XML string, retrieved from the parameter server,
+  /// using the given parameter name.
+  void addParam(const std::string & param);
+
+  /// Adds the static transforms from the robot model.
+  /// The model is given as an XML file.
+  void addFile(const std::string & filename);
+
+  inline const std::vector< tf::StampedTransform >& getStaticTransforms() const
+  { return static_transforms_; }
 };
 
-} //namespace log_and_playback
+}
 
-#endif /* __LOG_AND_PLAYBACK__DATA_READER__H__ */
+#endif // __LOG_AND_PLAYBACK__ROBOT_MODEL_H

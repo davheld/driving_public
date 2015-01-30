@@ -132,33 +132,59 @@ void convertApplanix(const rosbag::Bag & bag, const std::string & bag_filename)
 
 void convertVelodyne(const rosbag::Bag & bag, const std::string & bag_filename)
 {
-  rosbag::View view(bag, rosbag::TopicQuery("/driving/velodyne/packets"));
+  static const char topics[][128] = {
+    "/driving/velodyne/packets",
+    "/driving/velodyne0/packets",
+    "/driving/velodyne1/packets",
+    "/driving/velodyne2/packets",
+    "/driving/velodyne3/packets",
+    "/driving/velodyne4/packets",
+    "/driving/velodyne5/packets",
+    "/driving/velodyne6/packets",
+    "/driving/velodyne7/packets"
+  };
+  static const char vlf_names[][32] = {
+    ".vlf",
+    "-0.vlf",
+    "-1.vlf",
+    "-2.vlf",
+    "-3.vlf",
+    "-4.vlf",
+    "-5.vlf",
+    "-6.vlf",
+    "-7.vlf"
+  };
 
-  if( view.size()==0 )
-    return;
 
-  const std::string out_filename = make_new_filename(bag_filename, ".velodyne", ".vlf");
-  std::ofstream os(out_filename.c_str(), std::ios_base::out | std::ios_base::binary);
+  for(unsigned i=0; i<9; ++i) {
+    rosbag::View view(bag, rosbag::TopicQuery(topics[i]));
 
-  // Read and convert all scans
-  const ros::Time first_timestamp = view.getBeginTime();
-  const ros::Time last_timestamp = view.getEndTime();
-  for( rosbag::View::iterator it=view.begin(); it!=view.end(); ++it ) {
-    velodyne_msgs::VelodyneScan::ConstPtr velodyne_scan = it->instantiate<velodyne_msgs::VelodyneScan>();
-    if( velodyne_scan ) {
-      blf::vlf::write(*velodyne_scan, os);
-      updateProgressBar("velodyne", velodyne_scan->header.stamp, first_timestamp, last_timestamp);
-    }
-    else {
-      stdr_msgs::RawScans::ConstPtr raw_scans = it->instantiate<stdr_msgs::RawScans>();
-      if( raw_scans ) {
-        blf::vlf::write(*raw_scans, os);
-        updateProgressBar("velodyne", raw_scans->header.stamp, first_timestamp, last_timestamp);
+    if( view.size()==0 )
+      continue;
+
+    const std::string out_filename = make_new_filename(bag_filename, ".velodyne", vlf_names[i]);
+    std::ofstream os(out_filename.c_str(), std::ios_base::out | std::ios_base::binary);
+
+    // Read and convert all scans
+    const ros::Time first_timestamp = view.getBeginTime();
+    const ros::Time last_timestamp = view.getEndTime();
+    for( rosbag::View::iterator it=view.begin(); it!=view.end(); ++it ) {
+      velodyne_msgs::VelodyneScan::ConstPtr velodyne_scan = it->instantiate<velodyne_msgs::VelodyneScan>();
+      if( velodyne_scan ) {
+        blf::vlf::write(*velodyne_scan, os);
+        updateProgressBar("velodyne", velodyne_scan->header.stamp, first_timestamp, last_timestamp);
+      }
+      else {
+        stdr_msgs::RawScans::ConstPtr raw_scans = it->instantiate<stdr_msgs::RawScans>();
+        if( raw_scans ) {
+          blf::vlf::write(*raw_scans, os);
+          updateProgressBar("velodyne", raw_scans->header.stamp, first_timestamp, last_timestamp);
+        }
       }
     }
+    updateProgressBar("velodyne", last_timestamp, first_timestamp, last_timestamp);
+    putchar('\n');
   }
-  updateProgressBar("velodyne", last_timestamp, first_timestamp, last_timestamp);
-  putchar('\n');
 }
 
 void convertLadybug(const rosbag::Bag & bag, const std::string & bag_filename)

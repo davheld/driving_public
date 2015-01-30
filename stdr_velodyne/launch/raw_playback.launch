@@ -1,5 +1,6 @@
 <launch>
     <group ns="/driving/velodyne">
+        <rosparam command="load" file="$(find stdr_velodyne)/launch/driver_params.yaml"/>
         <node pkg="stdr_velodyne" type="conversion" name="velodyne_conversion"/>
         <node pkg="stdr_velodyne" type="pointcloud" name="velodyne_pointcloud"/>
         <node pkg="stdr_velodyne" type="aggregator_node" name="aggregator_node">
